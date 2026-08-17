@@ -112,3 +112,41 @@ export async function writeCover(
 	);
 	new Notice(path ? 'Обложка обновлена' : 'Обложка убрана');
 }
+
+/** Записывает источник контента ( ссылка или текст «где взять» ). */
+export async function writeSource(
+	app: App,
+	item: ContentItem,
+	value: string | null,
+): Promise<void> {
+	await app.fileManager.processFrontMatter(
+		item.file,
+		(fm: Record<string, unknown>) => {
+			if (value) {
+				fm['source'] = value;
+			} else {
+				delete fm['source'];
+			}
+		},
+	);
+	new Notice(value ? 'Источник обновлён' : 'Источник убран');
+}
+
+/** Записывает краткое описание карточки. */
+export async function writeDescription(
+	app: App,
+	item: ContentItem,
+	value: string | null,
+): Promise<void> {
+	await app.fileManager.processFrontMatter(
+		item.file,
+		(fm: Record<string, unknown>) => {
+			if (value) {
+				fm['description'] = value;
+			} else {
+				delete fm['description'];
+			}
+		},
+	);
+	new Notice(value ? 'Описание обновлено' : 'Описание убрано');
+}

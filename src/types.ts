@@ -54,6 +54,10 @@ export interface ContentItem {
 	rating: number | null;
 	/** Путь обложки из frontmatter ( cover ) или null. */
 	cover: string | null;
+	/** Ссылка или текст «где взять» из frontmatter ( source ) или null. */
+	source: string | null;
+	/** Краткое описание из frontmatter ( description ) или null. */
+	description: string | null;
 	started: string | null;
 	finished: string | null;
 }

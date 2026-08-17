@@ -116,7 +116,9 @@ export function contentItemFromFrontmatter(
 			),
 		},
 		rating: ratingFrom(fm['rating']),
-		cover: typeof fm['cover'] === 'string' && fm['cover'] ? fm['cover'] : null,
+		cover: textOrNull(fm['cover']),
+		source: textOrNull(fm['source']),
+		description: textOrNull(fm['description']),
 		started: dateString(fm['started']),
 		finished: dateString(fm['finished']),
 	};
@@ -143,5 +145,9 @@ function ratingFrom(value: unknown): number | null {
 }
 
 function dateString(value: unknown): string | null {
+	return typeof value === 'string' && value ? value : null;
+}
+
+function textOrNull(value: unknown): string | null {
 	return typeof value === 'string' && value ? value : null;
 }

@@ -4,12 +4,14 @@ import { createContentItem } from '../core/scaffold';
 import { getAllTypeSchemas, getTypeSchema } from '../core/registry';
 import {
 	STATUSES,
+	type ContentItem,
 	type ContentStatus,
 	type ContentTypeId,
 	toStatus,
 } from '../types';
 import { CoverSuggestModal } from './cover-picker';
 import { CoverUrlModal } from './cover-url-modal';
+import { ConfirmModal } from './confirm-modal';
 
 /**
  * Модалка создания контента: сначала выбор типа, затем форма с полями
@@ -20,6 +22,7 @@ export class AddContentModal extends Modal {
 	private values: Record<string, string> = {};
 	private status: ContentStatus = 'in-progress';
 	private coverPath: string | null = null;
+	private duplicateConfirmed = false;
 
 	constructor(app: App, private plugin: ContentLogPlugin) {
 		super(app);
@@ -94,6 +97,27 @@ export class AddContentModal extends Modal {
 			});
 		});
 
+		new Setting(this.contentEl)
+			.setName('Источник')
+			.setDesc('Где взять: ссылка или название')
+			.addText((text) => {
+				text.setPlaceholder('Ссылка или текст')
+					.setValue(this.values['source'] ?? '')
+					.onChange((value) => {
+						this.values['source'] = value;
+					});
+			});
+
+		new Setting(this.contentEl).setName('Краткая заметка').addTextArea(
+			(area) => {
+				area.setPlaceholder('Пара слов о содержании')
+					.setValue(this.values['description'] ?? '')
+					.onChange((value) => {
+						this.values['description'] = value;
+					});
+			},
+		);
+
 		const coverSetting = new Setting(this.contentEl).setName(
 			'Обложка (необязательно)',
 		);
@@ -137,6 +161,20 @@ export class AddContentModal extends Modal {
 			);
 	}
 
+	/** Ищет карточку того же типа с совпадающим названием ( без учёта регистра ). */
+	private findDuplicate(
+		title: string,
+		type: ContentTypeId,
+	): ContentItem | null {
+		const needle = title.toLowerCase();
+		return (
+			this.plugin.index.getAll().find(
+				(item) =>
+					item.type === type && item.title.toLowerCase() === needle,
+			) ?? null
+		);
+	}
+
 	private async submit(): Promise<void> {
 		const type = this.selected;
 		if (!type) return;
@@ -148,6 +186,21 @@ export class AddContentModal extends Modal {
 			new Notice('Введите название');
 			return;
 		}
+
+		const duplicate = this.findDuplicate(title, type);
+		if (duplicate && !this.duplicateConfirmed) {
+			new ConfirmModal(this.app, {
+				title: 'Возможный дубликат',
+				message: `«${duplicate.title}» — ${schema.label.toLowerCase()} с таким названием уже есть. Создать ещё одну карточку?`,
+				confirmText: 'Всё равно создать',
+				onConfirm: () => {
+					this.duplicateConfirmed = true;
+					void this.submit();
+				},
+			}).open();
+			return;
+		}
+		this.duplicateConfirmed = false;
 
 		const fields: Record<string, string | number> = {};
 		for (const field of schema.fields) {
@@ -165,19 +218,22 @@ export class AddContentModal extends Modal {
 			}
 		}
 
-		this.close();
-		try {
-			const file = await createContentItem(
-				this.app,
-				this.plugin.settings.rootFolder,
-				{
-					type,
-					title,
-					status: this.status,
-					fields,
-					cover: this.coverPath,
-				},
-			);
+			this.close();
+			try {
+				const file = await createContentItem(
+					this.app,
+					this.plugin.settings.rootFolder,
+					{
+						type,
+						title,
+						status: this.status,
+						fields,
+						cover: this.coverPath,
+						source: (this.values['source'] ?? '').trim() || null,
+						description:
+							(this.values['description'] ?? '').trim() || null,
+					},
+				);
 			if (file) {
 				await this.app.workspace.getLeaf('tab').openFile(file);
 			}

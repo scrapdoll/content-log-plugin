@@ -4,7 +4,11 @@ import type { ContentItem } from '../types';
 
 /** Модалка оценки карточки: звёзды 1–5 и снятие оценки. */
 export class RateContentModal extends Modal {
-	constructor(app: App, private item: ContentItem) {
+	constructor(
+		app: App,
+		private item: ContentItem,
+		private onSaved?: () => void,
+	) {
 		super(app);
 	}
 
@@ -24,9 +28,7 @@ export class RateContentModal extends Modal {
 			});
 			button.addEventListener('click', () => {
 				this.close();
-				void writeRating(this.app, this.item, star).catch((error) => {
-					console.error('content-log: rating update failed', error);
-				});
+				void this.apply(star);
 			});
 		}
 
@@ -34,9 +36,7 @@ export class RateContentModal extends Modal {
 			new Setting(contentEl).addButton((button) =>
 				button.setButtonText('Снять оценку').onClick(() => {
 					this.close();
-					void writeRating(this.app, this.item, 0).catch((error) => {
-						console.error('content-log: rating update failed', error);
-					});
+					void this.apply(0);
 				}),
 			);
 		}
@@ -44,5 +44,14 @@ export class RateContentModal extends Modal {
 
 	onClose(): void {
 		this.contentEl.empty();
+	}
+
+	private async apply(rating: number): Promise<void> {
+		try {
+			await writeRating(this.app, this.item, rating);
+			this.onSaved?.();
+		} catch (error) {
+			console.error('content-log: rating update failed', error);
+		}
 	}
 }

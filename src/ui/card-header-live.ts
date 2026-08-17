@@ -34,7 +34,9 @@ class CardHeaderWidget extends WidgetType {
 			a.progress.current === b.progress.current &&
 			a.progress.total === b.progress.total &&
 			a.rating === b.rating &&
-			a.cover === b.cover
+			a.cover === b.cover &&
+			a.source === b.source &&
+			a.description === b.description
 		);
 	}
 

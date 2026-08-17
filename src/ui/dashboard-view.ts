@@ -18,6 +18,7 @@ export const VIEW_TYPE_CONTENT_DASHBOARD = 'content-log-dashboard';
 type TypeFilter = string;
 type StatusFilter = ContentStatus | 'All';
 type SortKey = 'Updated' | 'Title' | 'Progress';
+type ViewMode = 'List' | 'Cards';
 
 const MONTH_LABELS = [
 	'янв',
@@ -40,6 +41,7 @@ export class ContentDashboardView extends ItemView {
 	private filterStatus: StatusFilter = 'All';
 	private filterRating = 'All';
 	private sortBy: SortKey = 'Updated';
+	private viewMode: ViewMode = 'List';
 	private listEl: HTMLElement | null = null;
 
 	private readonly changeHandler = () => this.render();
@@ -140,6 +142,31 @@ export class ContentDashboardView extends ItemView {
 		sortSelect.addEventListener('change', () => {
 			this.sortBy = sortSelect.value as SortKey;
 			this.renderList();
+		});
+
+		const toggle = header.createDiv({ cls: 'cl-view-toggle' });
+		const listButton = toggle.createEl('button', {
+			cls: 'cl-view-toggle-button',
+			attr: { 'aria-label': 'Список' },
+		});
+		setIcon(listButton, 'list');
+		const cardsButton = toggle.createEl('button', {
+			cls: 'cl-view-toggle-button',
+			attr: { 'aria-label': 'Карточки' },
+		});
+		setIcon(cardsButton, 'layout-grid');
+		if (this.viewMode === 'List') {
+			listButton.addClass('is-active');
+		} else {
+			cardsButton.addClass('is-active');
+		}
+		listButton.addEventListener('click', () => {
+			this.viewMode = 'List';
+			this.render();
+		});
+		cardsButton.addEventListener('click', () => {
+			this.viewMode = 'Cards';
+			this.render();
 		});
 	}
 
@@ -262,6 +289,8 @@ export class ContentDashboardView extends ItemView {
 		if (!this.listEl) return;
 		const list = this.listEl;
 		list.empty();
+		list.removeClass('cl-list', 'cl-cards-grid');
+		list.addClass(this.viewMode === 'Cards' ? 'cl-cards-grid' : 'cl-list');
 
 		const items = this.filteredItems();
 		if (items.length === 0) {
@@ -278,8 +307,14 @@ export class ContentDashboardView extends ItemView {
 			});
 			return;
 		}
-		for (const item of items) {
-			this.renderItemRow(list, item);
+		if (this.viewMode === 'Cards') {
+			for (const item of items) {
+				this.renderItemCard(list, item);
+			}
+		} else {
+			for (const item of items) {
+				this.renderItemRow(list, item);
+			}
 		}
 	}
 
@@ -344,6 +379,13 @@ export class ContentDashboardView extends ItemView {
 		if (subtitle) {
 			main.createDiv({ cls: 'cl-item-subtitle', text: subtitle });
 		}
+		if (item.description) {
+			main.createDiv({
+				cls: 'cl-item-desc',
+				text: item.description,
+				attr: { title: item.description },
+			});
+		}
 
 		if (schema.progressField) {
 			const progress = row.createDiv({ cls: 'cl-item-progress' });
@@ -366,6 +408,74 @@ export class ContentDashboardView extends ItemView {
 		}
 
 		row.createDiv({
+			cls: `cl-status cl-status--${item.status}`,
+			text: statusLabel(item.status),
+		});
+	}
+
+	/** Большая карточка с превью обложки для режима «Карточки». */
+	private renderItemCard(list: HTMLElement, item: ContentItem): void {
+		const schema = getTypeSchema(item.type);
+		if (!schema) return;
+		const card = list.createDiv({ cls: 'cl-card-big' });
+		card.addEventListener('click', () => {
+			void this.app.workspace.getLeaf('tab').openFile(item.file);
+		});
+
+		const coverSrc = resolveCoverSrc(this.app, item);
+		if (coverSrc) {
+			card.createEl('img', {
+				cls: 'cl-card-big-cover',
+				attr: {
+					src: coverSrc,
+					alt: item.title,
+					loading: 'lazy',
+				},
+			});
+		} else {
+			const placeholder = card.createDiv({
+				cls: 'cl-card-big-cover cl-card-big-cover--empty',
+			});
+			setIcon(placeholder, schema.icon);
+		}
+
+		const body = card.createDiv({ cls: 'cl-card-big-body' });
+		body.createDiv({ cls: 'cl-card-big-title', text: item.title });
+		const subtitle = schema.subtitleField
+			? String(item.fields[schema.subtitleField] ?? '')
+			: '';
+		if (subtitle) {
+			body.createDiv({ cls: 'cl-card-big-subtitle', text: subtitle });
+		}
+		if (item.description) {
+			body.createDiv({
+				cls: 'cl-card-big-desc',
+				text: item.description,
+				attr: { title: item.description },
+			});
+		}
+
+		if (schema.progressField) {
+			const progress = body.createDiv({ cls: 'cl-card-big-progress' });
+			if (item.progress.total) {
+				const bar = progress.createDiv({ cls: 'cl-progress' });
+				const fill = bar.createDiv({ cls: 'cl-progress-fill' });
+				fill.style.width = `${progressPercent(item)}%`;
+			}
+			progress.createDiv({
+				cls: 'cl-item-progress-label',
+				text: progressText(item),
+			});
+		}
+
+		const meta = body.createDiv({ cls: 'cl-card-big-meta' });
+		if (item.rating !== null) {
+			meta.createDiv({
+				cls: 'cl-item-rating',
+				text: '★'.repeat(item.rating) + '☆'.repeat(5 - item.rating),
+			});
+		}
+		meta.createDiv({
 			cls: `cl-status cl-status--${item.status}`,
 			text: statusLabel(item.status),
 		});

@@ -62,6 +62,14 @@
 	white-space: nowrap;
 }
 
+.cl-item-desc {
+	color: var(--text-faint);
+	font-size: 0.8em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .cl-item-progress {
 	display: flex;
 	flex-direction: column;
@@ -217,7 +225,7 @@
 
 .cl-card-header {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 10px;
 	flex-wrap: wrap;
 	margin: 2px 0 14px;
@@ -225,6 +233,29 @@
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 10px;
 	background: var(--background-secondary);
+}
+
+.cl-card-cover {
+	width: 44px;
+	height: 62px;
+	object-fit: cover;
+	border-radius: 4px;
+	flex-shrink: 0;
+}
+
+.cl-card-info {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.cl-card-info-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
 }
 
 .cl-card-status {
@@ -239,6 +270,63 @@
 	color: var(--text-muted);
 	font-size: 0.85em;
 	white-space: nowrap;
+}
+
+.cl-card-rating {
+	background: none;
+	border: none;
+	box-shadow: none;
+	padding: 0;
+	cursor: pointer;
+	color: var(--color-yellow, #e0ac00);
+	letter-spacing: 1px;
+	font-size: 0.9em;
+	line-height: 1;
+}
+
+.cl-card-more {
+	align-self: flex-start;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.cl-card-desc {
+	flex-basis: 100%;
+	color: var(--text-muted);
+	font-size: 0.85em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cl-card-notes {
+	flex-basis: 100%;
+	min-width: 0;
+}
+
+.cl-card-notes-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--text-muted);
+	font-size: 0.8em;
+	margin: 2px 0 4px;
+}
+
+.cl-card-notes-head .cl-chip-button {
+	font-size: 0.9em;
+	padding: 1px 8px;
+}
+
+.cl-card-notes-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.cl-card-notes-list .cl-item {
+	padding: 4px 6px;
 }
 
 .cl-chip-button {
@@ -420,4 +508,145 @@
 	max-width: 100%;
 	border-radius: 6px;
 	object-fit: contain;
+}
+
+/* Content Log — источник, описание, режим карточек */
+
+.cl-text-input,
+.cl-text-area {
+	width: 100%;
+}
+
+.cl-text-area {
+	min-height: 70px;
+	resize: vertical;
+}
+
+.content-log-modal textarea {
+	width: 100%;
+}
+
+.cl-card-desc {
+	flex-basis: 100%;
+	color: var(--text-muted);
+	font-size: 0.85em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cl-view-toggle {
+	display: flex;
+	gap: 4px;
+	margin-left: auto;
+}
+
+.cl-view-toggle-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px 8px;
+	color: var(--text-muted);
+}
+
+.cl-view-toggle-button.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.cl-cards-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+	gap: 12px;
+}
+
+.cl-card-big {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	padding: 10px;
+	background: var(--background-secondary);
+	cursor: pointer;
+}
+
+.cl-card-big:hover {
+	border-color: var(--interactive-accent);
+}
+
+.cl-card-big-cover {
+	width: 100%;
+	aspect-ratio: 2 / 3;
+	object-fit: cover;
+	border-radius: 6px;
+	margin-bottom: 8px;
+}
+
+.cl-card-big-cover--empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-faint);
+	background: var(--background-modifier-hover);
+}
+
+.cl-card-big-cover--empty .svg-icon {
+	width: 40px;
+	height: 40px;
+}
+
+.cl-card-big-body {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	flex: 1;
+	min-width: 0;
+}
+
+.cl-card-big-title {
+	font-weight: 600;
+	font-size: 0.95em;
+	line-height: 1.3;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.cl-card-big-subtitle {
+	color: var(--text-muted);
+	font-size: 0.8em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cl-card-big-desc {
+	color: var(--text-faint);
+	font-size: 0.78em;
+	line-height: 1.35;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.cl-card-big-progress {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+.cl-card-big .cl-progress {
+	width: 100%;
+}
+
+.cl-card-big-meta {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+	margin-top: auto;
+	padding-top: 6px;
 }
