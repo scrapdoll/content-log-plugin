@@ -1,7 +1,7 @@
 import { ItemView, setIcon, WorkspaceLeaf } from 'obsidian';
 import type ContentLogPlugin from '../main';
 import { exportDashboardMarkdown } from '../commands/export';
-import { findCoverFile } from '../core/cover';
+import { resolveCoverSrc } from '../core/cover';
 import { getAllTypeSchemas, getTypeSchema } from '../core/registry';
 import {
 	STATUSES,
@@ -321,12 +321,12 @@ export class ContentDashboardView extends ItemView {
 			void this.app.workspace.getLeaf('tab').openFile(item.file);
 		});
 
-		const coverFile = findCoverFile(this.app, item);
-		if (coverFile) {
+		const coverSrc = resolveCoverSrc(this.app, item);
+		if (coverSrc) {
 			row.createEl('img', {
 				cls: 'cl-item-cover',
 				attr: {
-					src: this.app.vault.getResourcePath(coverFile),
+					src: coverSrc,
 					alt: item.title,
 					loading: 'lazy',
 				},

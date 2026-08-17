@@ -2,10 +2,10 @@ import {
 	Decoration,
 	type DecorationSet,
 	EditorView,
-	ViewPlugin,
-	type ViewUpdate,
 	WidgetType,
 } from '@codemirror/view';
+import { type EditorState, StateField } from '@codemirror/state';
+import type { Text } from '@codemirror/state';
 import { editorInfoField, TFile } from 'obsidian';
 import type ContentLogPlugin from '../main';
 import { contentItemFromFrontmatter } from '../core/index';
@@ -47,41 +47,63 @@ class CardHeaderWidget extends WidgetType {
 
 function buildDecorations(
 	plugin: ContentLogPlugin,
-	view: EditorView,
+	state: EditorState,
 ): DecorationSet {
-	const file = view.state.field(editorInfoField, false)?.file;
+	const file = state.field(editorInfoField, false)?.file;
 	if (!(file instanceof TFile)) return Decoration.none;
 
-	const fm = parseFrontmatterText(view.state.doc.toString());
+	const fm = parseFrontmatterText(state.doc.toString());
 	if (!fm) return Decoration.none;
 
 	const item = contentItemFromFrontmatter(file, fm);
 	if (!item) return Decoration.none;
 
+	const anchor = panelAnchor(state.doc);
+	if (anchor === null) return Decoration.none;
+
 	return Decoration.set(
 		Decoration.widget({
 			widget: new CardHeaderWidget(plugin, item),
 			side: -1000,
-		}).range(0),
+			block: true,
+		}).range(anchor),
 	);
 }
 
+/**
+ * Позиция блочного виджета: строка после заголовка карточки, а если
+ * заголовка нет — первая строка после frontmatter. Позиция 0 не подходит:
+ * диапазон frontmatter в live preview заменяется панелью свойств, и
+ * виджет внутри него не отображается.
+ */
+function panelAnchor(doc: Text): number | null {
+	const total = doc.lines;
+	if (total === 0 || doc.line(1).text.trim() !== '---') return null;
+
+	let afterFrontmatter: number | null = null;
+	for (let index = 2; index <= total; index++) {
+		const line = doc.line(index);
+		if (afterFrontmatter === null) {
+			if (line.text.trim() === '---') {
+				afterFrontmatter = Math.min(line.to + 1, doc.length);
+			}
+			continue;
+		}
+		if (/^#\s/.test(line.text)) {
+			return Math.min(line.to + 1, doc.length);
+		}
+	}
+	return afterFrontmatter;
+}
+
 export function registerLivePreviewHeader(plugin: ContentLogPlugin): void {
-	const extension = ViewPlugin.fromClass(
-		class {
-			decorations: DecorationSet;
-
-			constructor(view: EditorView) {
-				this.decorations = buildDecorations(plugin, view);
-			}
-
-			update(update: ViewUpdate): void {
-				if (update.docChanged || update.viewportChanged) {
-					this.decorations = buildDecorations(plugin, update.view);
-				}
-			}
-		},
-		{ decorations: (instance) => instance.decorations },
-	);
-	plugin.registerEditorExtension(extension);
+	// Блочные виджеты нельзя задавать через ViewPlugin — только через
+	// StateField, иначе CodeMirror бросает RangeError при открытии файла.
+	const headerField = StateField.define<DecorationSet>({
+		create: (state) => buildDecorations(plugin, state),
+		update: (value, tr) =>
+			tr.docChanged ? buildDecorations(plugin, tr.state) : value,
+		provide: (field) => EditorView.decorations.from(field),
+	});
+	plugin.registerEditorExtension(headerField);
 }

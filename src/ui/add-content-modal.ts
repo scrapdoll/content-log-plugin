@@ -9,6 +9,7 @@ import {
 	toStatus,
 } from '../types';
 import { CoverSuggestModal } from './cover-picker';
+import { CoverUrlModal } from './cover-url-modal';
 
 /**
  * Модалка создания контента: сначала выбор типа, затем форма с полями
@@ -100,15 +101,29 @@ export class AddContentModal extends Modal {
 			coverSetting.setDesc(this.coverPath);
 		}
 		coverSetting.addButton((button) =>
-			button
-				.setButtonText(this.coverPath ? 'Изменить' : 'Выбрать')
-				.onClick(() => {
-					new CoverSuggestModal(this.app, (path) => {
-						this.coverPath = path;
-						this.render();
-					}).open();
-				}),
+			button.setButtonText('Файл').onClick(() => {
+				new CoverSuggestModal(this.app, (path) => {
+					this.coverPath = path;
+					this.render();
+				}).open();
+			}),
 		);
+		coverSetting.addButton((button) =>
+			button.setButtonText('Ссылка').onClick(() => {
+				new CoverUrlModal(this.app, (url) => {
+					this.coverPath = url;
+					this.render();
+				}).open();
+			}),
+		);
+		if (this.coverPath) {
+			coverSetting.addButton((button) =>
+				button.setButtonText('Убрать').onClick(() => {
+					this.coverPath = null;
+					this.render();
+				}),
+			);
+		}
 
 		new Setting(this.contentEl)
 			.addButton((button) =>

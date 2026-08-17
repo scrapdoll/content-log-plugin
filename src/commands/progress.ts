@@ -8,7 +8,11 @@ import { progressText } from '../utils/helpers';
 export class UpdateProgressModal extends Modal {
 	private nextValue: number;
 
-	constructor(app: App, private item: ContentItem) {
+	constructor(
+		app: App,
+		private item: ContentItem,
+		private onSaved?: () => void,
+	) {
 		super(app);
 		this.nextValue = item.progress.current ?? 0;
 	}
@@ -76,6 +80,7 @@ export class UpdateProgressModal extends Modal {
 		this.close();
 		try {
 			await writeProgress(this.app, this.item, value);
+			this.onSaved?.();
 		} catch (error) {
 			console.error('content-log: progress update failed', error);
 		}

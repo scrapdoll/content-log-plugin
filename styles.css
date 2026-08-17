@@ -399,3 +399,25 @@
 	border-radius: 3px;
 	flex-shrink: 0;
 }
+
+/* Content Log — обложка по ссылке */
+
+.cl-cover-url-input {
+	width: 100%;
+	margin-bottom: 10px;
+}
+
+.cl-cover-preview {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 60px;
+	margin-bottom: 10px;
+}
+
+.cl-cover-preview img {
+	max-height: 180px;
+	max-width: 100%;
+	border-radius: 6px;
+	object-fit: contain;
+}

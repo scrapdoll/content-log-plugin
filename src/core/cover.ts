@@ -16,6 +16,20 @@ export function isImageFile(file: TFile): boolean {
 	return IMAGE_EXTENSIONS.has(file.extension.toLowerCase());
 }
 
+/** Обложка, заданная внешней ссылкой ( http/https ), а не файлом vault. */
+export function isRemoteCover(value: string): boolean {
+	return /^https?:\/\//i.test(value.trim());
+}
+
+/** Готовый src для тега img: внешняя ссылка как есть либо ресурс vault. */
+export function resolveCoverSrc(app: App, item: ContentItem): string | null {
+	if (item.cover && isRemoteCover(item.cover)) {
+		return item.cover.trim();
+	}
+	const file = findCoverFile(app, item);
+	return file ? app.vault.getResourcePath(file) : null;
+}
+
 /**
  * Ищет обложку карточки: сначала явный путь из frontmatter ( cover ),
  * затем первый рисунок рядом с карточкой ( не в Notes ).

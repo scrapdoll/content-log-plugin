@@ -1,7 +1,7 @@
 {
 	"id": "content-log-plugin",
 	"name": "Content Log",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"minAppVersion": "1.7.2",
 	"description": "Учёт потребляемого контента: книги, фильмы и игры с прогрессом, статусами и дашбордом.",
 	"author": "scrapdoll",

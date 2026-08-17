@@ -1,7 +1,12 @@
 import { Menu, TFile } from 'obsidian';
 import type ContentLogPlugin from '../main';
-import { parseContentItem } from '../core/index';
-import { writeProgress, writeStatus, writeRating, writeCover } from '../core/mutations';
+import { contentItemFromFrontmatter, parseContentItem } from '../core/index';
+import {
+	writeProgress,
+	writeStatus,
+	writeRating,
+	writeCover,
+} from '../core/mutations';
 import { createContentNote } from '../core/notes';
 import { getTypeSchema, isKnownType } from '../core/registry';
 import { UpdateProgressModal } from '../commands/progress';
@@ -10,8 +15,13 @@ import {
 	type ContentItem,
 	statusLabel,
 } from '../types';
-import { progressPercent, progressText } from '../utils/helpers';
+import {
+	parseFrontmatterText,
+	progressPercent,
+	progressText,
+} from '../utils/helpers';
 import { CoverSuggestModal } from './cover-picker';
+import { CoverUrlModal } from './cover-url-modal';
 
 /**
  * Интерактивная шапка карточки: статус-пилюля с меню, прогресс-бар,
@@ -34,7 +44,9 @@ export function registerCardHeader(plugin: ContentLogPlugin): void {
 			plugin.index.get(file) ?? parseContentItem(plugin.app, file);
 		if (!item) return;
 
-		buildCardHeaderPanel(plugin, el, item);
+		// Отдельный контейнер, чтобы перерисовывать панель после записей.
+		const mount = el.createDiv();
+		buildCardHeaderPanel(plugin, mount, item);
 	});
 }
 
@@ -48,22 +60,45 @@ export function buildCardHeaderPanel(
 	if (!schema) return;
 
 	const panel = container.createDiv({ cls: 'cl-card-header' });
+	const refresh = () => void rerenderPanel(plugin, container, item.file);
 
-	buildStatusPill(plugin, panel, item);
+	buildStatusPill(plugin, panel, item, refresh);
 
 	if (schema.progressField) {
-		buildProgressControls(plugin, panel, item);
+		buildProgressControls(plugin, panel, item, refresh);
 	}
 
-	buildRatingStars(plugin, panel, item);
-	buildCoverButton(plugin, panel, item);
+	buildRatingStars(plugin, panel, item, refresh);
+	buildCoverButton(plugin, panel, item, refresh);
 	buildNoteButton(plugin, panel, item);
+}
+
+/**
+ * Перечитывает карточку с диска и строит панель заново: Obsidian не
+ * перезапускает post processor при изменении только frontmatter.
+ */
+async function rerenderPanel(
+	plugin: ContentLogPlugin,
+	container: HTMLElement,
+	file: TFile,
+): Promise<void> {
+	const fm = parseFrontmatterText(await plugin.app.vault.read(file));
+	if (!fm) return;
+	const item = contentItemFromFrontmatter(file, fm);
+	if (!item) return;
+	container.empty();
+	buildCardHeaderPanel(plugin, container, item);
+}
+
+function failLog(scope: string): (error: unknown) => void {
+	return (error) => console.error(`content-log: ${scope} failed`, error);
 }
 
 function buildStatusPill(
 	plugin: ContentLogPlugin,
 	panel: HTMLElement,
 	item: ContentItem,
+	refresh: () => void,
 ): void {
 	const statusPill = panel.createDiv({
 		cls: `cl-status cl-status--${item.status} cl-card-status`,
@@ -77,14 +112,9 @@ function buildStatusPill(
 					.setTitle(status.label)
 					.setChecked(status.id === item.status)
 					.onClick(() =>
-						void writeStatus(plugin.app, item, status.id).catch(
-							(error) => {
-								console.error(
-									'content-log: status update failed',
-									error,
-								);
-							},
-						),
+						void writeStatus(plugin.app, item, status.id)
+							.then(refresh)
+							.catch(failLog('status update')),
 					),
 			);
 		}
@@ -96,6 +126,7 @@ function buildProgressControls(
 	plugin: ContentLogPlugin,
 	panel: HTMLElement,
 	item: ContentItem,
+	refresh: () => void,
 ): void {
 	const schema = getTypeSchema(item.type);
 	if (!schema?.progressField) return;
@@ -119,9 +150,9 @@ function buildProgressControls(
 				plugin.app,
 				item,
 				(item.progress.current ?? 0) + step,
-			).catch((error) => {
-				console.error('content-log: progress update failed', error);
-			}),
+			)
+				.then(refresh)
+				.catch(failLog('progress update')),
 		);
 	}
 	const exactButton = panel.createEl('button', {
@@ -130,7 +161,7 @@ function buildProgressControls(
 		attr: { 'aria-label': 'Задать точное значение' },
 	});
 	exactButton.addEventListener('click', () => {
-		new UpdateProgressModal(plugin.app, item).open();
+		new UpdateProgressModal(plugin.app, item, refresh).open();
 	});
 }
 
@@ -138,6 +169,7 @@ function buildRatingStars(
 	plugin: ContentLogPlugin,
 	panel: HTMLElement,
 	item: ContentItem,
+	refresh: () => void,
 ): void {
 	const rating = panel.createDiv({ cls: 'cl-rating' });
 	for (let star = 1; star <= 5; star++) {
@@ -152,9 +184,9 @@ function buildRatingStars(
 				plugin.app,
 				item,
 				item.rating === star ? 0 : star,
-			).catch((error) => {
-				console.error('content-log: rating update failed', error);
-			}),
+			)
+				.then(refresh)
+				.catch(failLog('rating update')),
 		);
 	}
 }
@@ -163,17 +195,52 @@ function buildCoverButton(
 	plugin: ContentLogPlugin,
 	panel: HTMLElement,
 	item: ContentItem,
+	refresh: () => void,
 ): void {
 	const button = panel.createEl('button', {
 		cls: 'cl-chip-button',
 		text: 'Обложка',
 	});
-	button.addEventListener('click', () => {
-		new CoverSuggestModal(plugin.app, (path) => {
-			void writeCover(plugin.app, item, path).catch((error) => {
-				console.error('content-log: cover update failed', error);
-			});
-		}).open();
+	button.addEventListener('click', (evt) => {
+		const menu = new Menu();
+		menu.addItem((menuItem) =>
+			menuItem
+				.setTitle('Из хранилища…')
+				.setIcon('image')
+				.onClick(() => {
+					new CoverSuggestModal(plugin.app, (path) => {
+						void writeCover(plugin.app, item, path)
+							.then(refresh)
+							.catch(failLog('cover update'));
+					}).open();
+				}),
+		);
+		menu.addItem((menuItem) =>
+			menuItem
+				.setTitle('По ссылке…')
+				.setIcon('link')
+				.onClick(() => {
+					new CoverUrlModal(plugin.app, (url) => {
+						void writeCover(plugin.app, item, url)
+							.then(refresh)
+							.catch(failLog('cover update'));
+					}).open();
+				}),
+		);
+		if (item.cover) {
+			menu.addSeparator();
+			menu.addItem((menuItem) =>
+				menuItem
+					.setTitle('Убрать обложку')
+					.setIcon('trash')
+					.onClick(() => {
+						void writeCover(plugin.app, item, null)
+							.then(refresh)
+							.catch(failLog('cover update'));
+					}),
+			);
+		}
+		menu.showAtMouseEvent(evt);
 	});
 }
 
