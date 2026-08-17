@@ -1,8 +1,279 @@
-/*
+/* Content Log — дашборд */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.content-log-dashboard {
+	padding: 14px 16px;
+}
 
-If your plugin does not need CSS, delete this file.
+.cl-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 14px;
+}
 
-*/
+.cl-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.cl-item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 10px;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.cl-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.cl-item-icon {
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+}
+
+.cl-item-icon .svg-icon {
+	width: 20px;
+	height: 20px;
+}
+
+.cl-item-main {
+	flex: 1;
+	min-width: 0;
+}
+
+.cl-item-title {
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cl-item-subtitle {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cl-item-progress {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 3px;
+	min-width: 90px;
+}
+
+.cl-progress {
+	width: 110px;
+	height: 6px;
+	border-radius: 3px;
+	background: var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.cl-progress-fill {
+	height: 100%;
+	border-radius: 3px;
+	background: var(--interactive-accent);
+}
+
+.cl-item-progress-label {
+	color: var(--text-muted);
+	font-size: 0.8em;
+	white-space: nowrap;
+}
+
+.cl-status {
+	font-size: 0.75em;
+	padding: 3px 10px;
+	border-radius: 999px;
+	white-space: nowrap;
+}
+
+.cl-status--planned {
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.cl-status--in-progress {
+	background: var(--color-blue, #086ddd);
+	color: var(--text-on-accent, #ffffff);
+}
+
+.cl-status--finished {
+	background: var(--color-green, #08a050);
+	color: var(--text-on-accent, #ffffff);
+}
+
+.cl-status--abandoned {
+	background: var(--color-orange, #e0ac00);
+	color: var(--text-on-accent, #ffffff);
+}
+
+.cl-empty {
+	text-align: center;
+	color: var(--text-muted);
+	padding: 48px 16px;
+}
+
+.cl-empty button {
+	margin-top: 10px;
+}
+
+/* Content Log — модалки */
+
+.cl-type-grid {
+	display: flex;
+	gap: 12px;
+	justify-content: center;
+	padding: 8px 0 4px;
+}
+
+.cl-type-button {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 18px 22px;
+	border-radius: 10px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	cursor: pointer;
+}
+
+.cl-type-button:hover {
+	border-color: var(--interactive-accent);
+	background: var(--background-modifier-hover);
+}
+
+.cl-type-icon .svg-icon {
+	width: 28px;
+	height: 28px;
+}
+
+.cl-type-label {
+	font-weight: 600;
+}
+
+.cl-modal-hint {
+	color: var(--text-muted);
+	margin: 4px 0 12px;
+}
+
+.cl-status-option {
+	display: block;
+	width: 100%;
+	margin-bottom: 8px;
+}
+
+.cl-status-option.is-active {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+/* Content Log — статистика на дашборде */
+
+.cl-stats {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin-bottom: 14px;
+}
+
+.cl-stat {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 0.8em;
+	padding: 3px 10px;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.cl-stat:hover {
+	background: var(--background-modifier-hover);
+}
+
+.cl-stat.is-active {
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+}
+
+.cl-stat .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+/* Content Log — интерактивная шапка карточки */
+
+.cl-card-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin: 2px 0 14px;
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	background: var(--background-secondary);
+}
+
+.cl-card-status {
+	cursor: pointer;
+}
+
+.cl-card-header .cl-progress {
+	width: 120px;
+}
+
+.cl-card-progress-label {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	white-space: nowrap;
+}
+
+.cl-chip-button {
+	font-size: 0.8em;
+	padding: 3px 10px;
+}
+
+/* Content Log — редактор кастомных типов */
+
+.cl-modal-section {
+	font-weight: 600;
+	margin: 16px 0 8px;
+}
+
+.cl-fields-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 10px;
+}
+
+.cl-field-row {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.cl-field-key {
+	width: 30%;
+}
+
+.cl-field-label {
+	flex: 1;
+}
+
+.cl-field-kind {
+	width: auto;
+}
