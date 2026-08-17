@@ -80,14 +80,11 @@ export class ContentIndex extends Events {
 	}
 }
 
-export function parseContentItem(
-	app: App,
+/** Собирает ContentItem из уже прочитанного frontmatter. */
+export function contentItemFromFrontmatter(
 	file: TFile,
+	fm: Record<string, unknown>,
 ): ContentItem | null {
-	const fm: Record<string, unknown> | undefined =
-		app.metadataCache.getFileCache(file)?.frontmatter;
-	if (!fm) return null;
-
 	const type = fm['type'];
 	if (!isKnownType(type)) return null;
 	const schema: TypeSchema | undefined = getTypeSchema(type);
@@ -104,7 +101,10 @@ export function parseContentItem(
 	return {
 		file,
 		type,
-		title: typeof fm['title'] === 'string' && fm['title'] ? fm['title'] : file.basename,
+		title:
+			typeof fm['title'] === 'string' && fm['title']
+				? fm['title']
+				: file.basename,
 		status: toStatus(fm['status']),
 		fields,
 		progress: {
@@ -115,13 +115,31 @@ export function parseContentItem(
 				schema.progressTotalField ? fm[schema.progressTotalField] : undefined,
 			),
 		},
+		rating: ratingFrom(fm['rating']),
+		cover: typeof fm['cover'] === 'string' && fm['cover'] ? fm['cover'] : null,
 		started: dateString(fm['started']),
 		finished: dateString(fm['finished']),
 	};
 }
 
+export function parseContentItem(
+	app: App,
+	file: TFile,
+): ContentItem | null {
+	const fm: Record<string, unknown> | undefined =
+		app.metadataCache.getFileCache(file)?.frontmatter;
+	if (!fm) return null;
+	return contentItemFromFrontmatter(file, fm);
+}
+
 function numOrNull(value: unknown): number | null {
 	return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function ratingFrom(value: unknown): number | null {
+	if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+	const rating = Math.round(value);
+	return rating >= 1 && rating <= 5 ? rating : null;
 }
 
 function dateString(value: unknown): string | null {

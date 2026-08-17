@@ -42,6 +42,9 @@ export async function exportDashboardMarkdown(
 				if (subtitle) bits.push(subtitle);
 			}
 			if (schema?.progressField) bits.push(progressText(item));
+			if (item.rating !== null) {
+				bits.push(`${'★'.repeat(item.rating)}${'☆'.repeat(5 - item.rating)}`);
+			}
 			if (item.started) bits.push(`с ${item.started}`);
 			if (item.finished) bits.push(`завершено ${item.finished}`);
 			const link = `[[${item.file.path.replace(/\.md$/, '')}|${item.title}]]`;

@@ -6,6 +6,7 @@ import { openDashboard } from '../ui/dashboard-view';
 import { UpdateProgressModal } from './progress';
 import { UpdateStatusModal } from './status';
 import { AddNoteModal } from './note';
+import { RateContentModal } from './rating';
 import { exportDashboardMarkdown } from './export';
 
 export function registerCommands(plugin: ContentLogPlugin): void {
@@ -50,6 +51,17 @@ export function registerCommands(plugin: ContentLogPlugin): void {
 			const item = getActiveContentItem(plugin);
 			if (!item) return false;
 			if (!checking) new AddNoteModal(plugin.app, item).open();
+			return true;
+		},
+	});
+
+	plugin.addCommand({
+		id: 'rate-content',
+		name: 'Оценить контент',
+		checkCallback: (checking) => {
+			const item = getActiveContentItem(plugin);
+			if (!item) return false;
+			if (!checking) new RateContentModal(plugin.app, item).open();
 			return true;
 		},
 	});

@@ -1,6 +1,7 @@
 import { ItemView, setIcon, WorkspaceLeaf } from 'obsidian';
 import type ContentLogPlugin from '../main';
 import { exportDashboardMarkdown } from '../commands/export';
+import { findCoverFile } from '../core/cover';
 import { getAllTypeSchemas, getTypeSchema } from '../core/registry';
 import {
 	STATUSES,
@@ -18,10 +19,26 @@ type TypeFilter = string;
 type StatusFilter = ContentStatus | 'All';
 type SortKey = 'Updated' | 'Title' | 'Progress';
 
-/** Живой дашборд со всем контентом: статистика, фильтры, сортировка, прогресс. */
+const MONTH_LABELS = [
+	'янв',
+	'фев',
+	'мар',
+	'апр',
+	'май',
+	'июн',
+	'июл',
+	'авг',
+	'сен',
+	'окт',
+	'ноя',
+	'дек',
+];
+
+/** Живой дашборд со всем контентом: статистика, график, фильтры, обложки. */
 export class ContentDashboardView extends ItemView {
 	private filterType: TypeFilter = 'All';
 	private filterStatus: StatusFilter = 'All';
+	private filterRating = 'All';
 	private sortBy: SortKey = 'Updated';
 	private listEl: HTMLElement | null = null;
 
@@ -59,6 +76,7 @@ export class ContentDashboardView extends ItemView {
 		contentEl.addClass('content-log-dashboard');
 		this.renderHeader();
 		this.renderStats();
+		this.renderChart();
 		this.listEl = contentEl.createDiv({ cls: 'cl-list' });
 		this.renderList();
 	}
@@ -101,6 +119,17 @@ export class ContentDashboardView extends ItemView {
 		statusSelect.addEventListener('change', () => {
 			this.filterStatus = statusSelect.value as ContentStatus;
 			this.render();
+		});
+
+		const ratingSelect = header.createEl('select');
+		this.addOption(ratingSelect, 'All', 'Любая оценка');
+		for (let star = 1; star <= 5; star++) {
+			this.addOption(ratingSelect, String(star), `${'★'.repeat(star)} и выше`);
+		}
+		ratingSelect.value = this.filterRating;
+		ratingSelect.addEventListener('change', () => {
+			this.filterRating = ratingSelect.value;
+			this.renderList();
 		});
 
 		const sortSelect = header.createEl('select');
@@ -151,6 +180,21 @@ export class ContentDashboardView extends ItemView {
 			});
 		}
 
+		const rated = all.filter((item) => item.rating !== null);
+		if (rated.length > 0) {
+			const average =
+				rated.reduce((sum, item) => sum + (item.rating ?? 0), 0) /
+				rated.length;
+			this.renderStatChip(stats, {
+				text: `Средняя оценка: ${average.toFixed(1)} ★`,
+				active: this.filterRating !== 'All',
+				onClick: () => {
+					this.filterRating = this.filterRating === 'All' ? '4' : 'All';
+					this.render();
+				},
+			});
+		}
+
 		const year = new Date().getFullYear();
 		const doneThisYear = all.filter((item) =>
 			item.finished?.startsWith(String(year)),
@@ -181,6 +225,37 @@ export class ContentDashboardView extends ItemView {
 		}
 		chip.createSpan({ text: params.text });
 		chip.addEventListener('click', params.onClick);
+	}
+
+	/** Столбчатый график «завершено по месяцам» за последние 12 месяцев. */
+	private renderChart(): void {
+		const all = this.plugin.index.getAll();
+		const now = new Date();
+		const months: { key: string; label: string; count: number }[] = [];
+		for (let offset = 11; offset >= 0; offset--) {
+			const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+			const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+			months.push({
+				key,
+				label: MONTH_LABELS[date.getMonth()] ?? '',
+				count: all.filter((item) => item.finished?.startsWith(key)).length,
+			});
+		}
+
+		const wrap = this.contentEl.createDiv({ cls: 'cl-chart-wrap' });
+		wrap.createDiv({ cls: 'cl-chart-title', text: 'Завершено по месяцам' });
+		const chart = wrap.createDiv({ cls: 'cl-chart' });
+		const max = Math.max(...months.map((month) => month.count), 1);
+		for (const month of months) {
+			const column = chart.createDiv({
+				cls: 'cl-chart-col',
+				attr: { title: `${month.key}: ${month.count}` },
+			});
+			const bar = column.createDiv({ cls: 'cl-chart-bar' });
+			bar.style.height = `${Math.round((month.count / max) * 100)}%`;
+			if (month.count === 0) bar.addClass('is-empty');
+			column.createDiv({ cls: 'cl-chart-label', text: month.label });
+		}
 	}
 
 	private renderList(): void {
@@ -216,6 +291,12 @@ export class ContentDashboardView extends ItemView {
 		if (this.filterStatus !== 'All') {
 			items = items.filter((item) => item.status === this.filterStatus);
 		}
+		if (this.filterRating !== 'All') {
+			const min = Number(this.filterRating);
+			items = items.filter(
+				(item) => item.rating !== null && item.rating >= min,
+			);
+		}
 		const collator = new Intl.Collator('ru', { sensitivity: 'base' });
 		switch (this.sortBy) {
 			case 'Title':
@@ -240,8 +321,20 @@ export class ContentDashboardView extends ItemView {
 			void this.app.workspace.getLeaf('tab').openFile(item.file);
 		});
 
-		const icon = row.createDiv({ cls: 'cl-item-icon' });
-		setIcon(icon, schema.icon);
+		const coverFile = findCoverFile(this.app, item);
+		if (coverFile) {
+			row.createEl('img', {
+				cls: 'cl-item-cover',
+				attr: {
+					src: this.app.vault.getResourcePath(coverFile),
+					alt: item.title,
+					loading: 'lazy',
+				},
+			});
+		} else {
+			const icon = row.createDiv({ cls: 'cl-item-icon' });
+			setIcon(icon, schema.icon);
+		}
 
 		const main = row.createDiv({ cls: 'cl-item-main' });
 		main.createDiv({ cls: 'cl-item-title', text: item.title });
@@ -262,6 +355,13 @@ export class ContentDashboardView extends ItemView {
 			progress.createDiv({
 				cls: 'cl-item-progress-label',
 				text: progressText(item),
+			});
+		}
+
+		if (item.rating !== null) {
+			row.createDiv({
+				cls: 'cl-item-rating',
+				text: '★'.repeat(item.rating) + '☆'.repeat(5 - item.rating),
 			});
 		}
 

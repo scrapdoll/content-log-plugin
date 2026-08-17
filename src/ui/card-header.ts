@@ -1,7 +1,7 @@
 import { Menu, TFile } from 'obsidian';
 import type ContentLogPlugin from '../main';
 import { parseContentItem } from '../core/index';
-import { writeProgress, writeStatus } from '../core/mutations';
+import { writeProgress, writeStatus, writeRating, writeCover } from '../core/mutations';
 import { createContentNote } from '../core/notes';
 import { getTypeSchema, isKnownType } from '../core/registry';
 import { UpdateProgressModal } from '../commands/progress';
@@ -11,11 +11,12 @@ import {
 	statusLabel,
 } from '../types';
 import { progressPercent, progressText } from '../utils/helpers';
+import { CoverSuggestModal } from './cover-picker';
 
 /**
- * Интерактивная шапка карточки в режиме чтения: статус-пилюля с меню,
- * прогресс-бар и быстрые кнопки. Работает в reading view, превью и эмбедах;
- * в live preview не отображается.
+ * Интерактивная шапка карточки: статус-пилюля с меню, прогресс-бар,
+ * быстрые кнопки, оценка звёздами и обложка. Используется в reading view
+ * ( post processor ) и в live preview ( CM6 widget ).
  */
 export function registerCardHeader(plugin: ContentLogPlugin): void {
 	plugin.registerMarkdownPostProcessor((el, ctx) => {
@@ -33,11 +34,12 @@ export function registerCardHeader(plugin: ContentLogPlugin): void {
 			plugin.index.get(file) ?? parseContentItem(plugin.app, file);
 		if (!item) return;
 
-		renderCardHeader(plugin, el, item);
+		buildCardHeaderPanel(plugin, el, item);
 	});
 }
 
-function renderCardHeader(
+/** Строит панель шапки в переданный контейнер. */
+export function buildCardHeaderPanel(
 	plugin: ContentLogPlugin,
 	container: HTMLElement,
 	item: ContentItem,
@@ -47,6 +49,22 @@ function renderCardHeader(
 
 	const panel = container.createDiv({ cls: 'cl-card-header' });
 
+	buildStatusPill(plugin, panel, item);
+
+	if (schema.progressField) {
+		buildProgressControls(plugin, panel, item);
+	}
+
+	buildRatingStars(plugin, panel, item);
+	buildCoverButton(plugin, panel, item);
+	buildNoteButton(plugin, panel, item);
+}
+
+function buildStatusPill(
+	plugin: ContentLogPlugin,
+	panel: HTMLElement,
+	item: ContentItem,
+): void {
 	const statusPill = panel.createDiv({
 		cls: `cl-status cl-status--${item.status} cl-card-status`,
 		text: statusLabel(item.status),
@@ -72,47 +90,103 @@ function renderCardHeader(
 		}
 		menu.showAtMouseEvent(evt);
 	});
+}
 
-	if (schema.progressField) {
-		if (item.progress.total) {
-			const bar = panel.createDiv({ cls: 'cl-progress' });
-			const fill = bar.createDiv({ cls: 'cl-progress-fill' });
-			fill.style.width = `${progressPercent(item)}%`;
-		}
-		panel.createSpan({
-			cls: 'cl-card-progress-label',
-			text: progressText(item),
-		});
-		for (const step of schema.progressQuickSteps) {
-			const button = panel.createEl('button', {
-				cls: 'cl-chip-button',
-				text: `+${step} ${schema.progressUnit}`,
-			});
-			button.addEventListener('click', () =>
-				void writeProgress(
-					plugin.app,
-					item,
-					(item.progress.current ?? 0) + step,
-				).catch((error) => {
-					console.error('content-log: progress update failed', error);
-				}),
-			);
-		}
-		const exactButton = panel.createEl('button', {
-			cls: 'cl-chip-button',
-			text: '…',
-			attr: { 'aria-label': 'Задать точное значение' },
-		});
-		exactButton.addEventListener('click', () => {
-			new UpdateProgressModal(plugin.app, item).open();
-		});
+function buildProgressControls(
+	plugin: ContentLogPlugin,
+	panel: HTMLElement,
+	item: ContentItem,
+): void {
+	const schema = getTypeSchema(item.type);
+	if (!schema?.progressField) return;
+
+	if (item.progress.total) {
+		const bar = panel.createDiv({ cls: 'cl-progress' });
+		const fill = bar.createDiv({ cls: 'cl-progress-fill' });
+		fill.style.width = `${progressPercent(item)}%`;
 	}
+	panel.createSpan({
+		cls: 'cl-card-progress-label',
+		text: progressText(item),
+	});
+	for (const step of schema.progressQuickSteps) {
+		const button = panel.createEl('button', {
+			cls: 'cl-chip-button',
+			text: `+${step} ${schema.progressUnit}`,
+		});
+		button.addEventListener('click', () =>
+			void writeProgress(
+				plugin.app,
+				item,
+				(item.progress.current ?? 0) + step,
+			).catch((error) => {
+				console.error('content-log: progress update failed', error);
+			}),
+		);
+	}
+	const exactButton = panel.createEl('button', {
+		cls: 'cl-chip-button',
+		text: '…',
+		attr: { 'aria-label': 'Задать точное значение' },
+	});
+	exactButton.addEventListener('click', () => {
+		new UpdateProgressModal(plugin.app, item).open();
+	});
+}
 
-	const noteButton = panel.createEl('button', {
+function buildRatingStars(
+	plugin: ContentLogPlugin,
+	panel: HTMLElement,
+	item: ContentItem,
+): void {
+	const rating = panel.createDiv({ cls: 'cl-rating' });
+	for (let star = 1; star <= 5; star++) {
+		const filled = item.rating !== null && star <= item.rating;
+		const button = rating.createEl('button', {
+			cls: `cl-star${filled ? ' is-filled' : ''}`,
+			text: '★',
+			attr: { 'aria-label': `Оценка ${star}` },
+		});
+		button.addEventListener('click', () =>
+			void writeRating(
+				plugin.app,
+				item,
+				item.rating === star ? 0 : star,
+			).catch((error) => {
+				console.error('content-log: rating update failed', error);
+			}),
+		);
+	}
+}
+
+function buildCoverButton(
+	plugin: ContentLogPlugin,
+	panel: HTMLElement,
+	item: ContentItem,
+): void {
+	const button = panel.createEl('button', {
+		cls: 'cl-chip-button',
+		text: 'Обложка',
+	});
+	button.addEventListener('click', () => {
+		new CoverSuggestModal(plugin.app, (path) => {
+			void writeCover(plugin.app, item, path).catch((error) => {
+				console.error('content-log: cover update failed', error);
+			});
+		}).open();
+	});
+}
+
+function buildNoteButton(
+	plugin: ContentLogPlugin,
+	panel: HTMLElement,
+	item: ContentItem,
+): void {
+	const button = panel.createEl('button', {
 		cls: 'cl-chip-button',
 		text: 'Заметка',
 	});
-	noteButton.addEventListener('click', () =>
+	button.addEventListener('click', () =>
 		void (async () => {
 			const note = await createContentNote(plugin.app, item);
 			if (note) {

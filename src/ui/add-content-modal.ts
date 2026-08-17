@@ -8,6 +8,7 @@ import {
 	type ContentTypeId,
 	toStatus,
 } from '../types';
+import { CoverSuggestModal } from './cover-picker';
 
 /**
  * Модалка создания контента: сначала выбор типа, затем форма с полями
@@ -17,6 +18,7 @@ export class AddContentModal extends Modal {
 	private selected: ContentTypeId | null = null;
 	private values: Record<string, string> = {};
 	private status: ContentStatus = 'in-progress';
+	private coverPath: string | null = null;
 
 	constructor(app: App, private plugin: ContentLogPlugin) {
 		super(app);
@@ -91,6 +93,23 @@ export class AddContentModal extends Modal {
 			});
 		});
 
+		const coverSetting = new Setting(this.contentEl).setName(
+			'Обложка (необязательно)',
+		);
+		if (this.coverPath) {
+			coverSetting.setDesc(this.coverPath);
+		}
+		coverSetting.addButton((button) =>
+			button
+				.setButtonText(this.coverPath ? 'Изменить' : 'Выбрать')
+				.onClick(() => {
+					new CoverSuggestModal(this.app, (path) => {
+						this.coverPath = path;
+						this.render();
+					}).open();
+				}),
+		);
+
 		new Setting(this.contentEl)
 			.addButton((button) =>
 				button.setButtonText('Отмена').onClick(() => this.close()),
@@ -136,7 +155,13 @@ export class AddContentModal extends Modal {
 			const file = await createContentItem(
 				this.app,
 				this.plugin.settings.rootFolder,
-				{ type, title, status: this.status, fields },
+				{
+					type,
+					title,
+					status: this.status,
+					fields,
+					cover: this.coverPath,
+				},
 			);
 			if (file) {
 				await this.app.workspace.getLeaf('tab').openFile(file);

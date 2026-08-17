@@ -73,3 +73,42 @@ export async function writeStatus(
 	);
 	new Notice(`Статус: ${statusLabel(status)}`);
 }
+
+/** Ставит оценку 1–5; значения вне диапазона снимают оценку. */
+export async function writeRating(
+	app: App,
+	item: ContentItem,
+	rating: number,
+): Promise<void> {
+	const valid = rating >= 1 && rating <= 5;
+	await app.fileManager.processFrontMatter(
+		item.file,
+		(fm: Record<string, unknown>) => {
+			if (valid) {
+				fm['rating'] = rating;
+			} else {
+				delete fm['rating'];
+			}
+		},
+	);
+	new Notice(valid ? `Оценка: ${'★'.repeat(rating)}` : 'Оценка снята');
+}
+
+/** Записывает путь обложки в frontmatter карточки. */
+export async function writeCover(
+	app: App,
+	item: ContentItem,
+	path: string | null,
+): Promise<void> {
+	await app.fileManager.processFrontMatter(
+		item.file,
+		(fm: Record<string, unknown>) => {
+			if (path) {
+				fm['cover'] = path;
+			} else {
+				delete fm['cover'];
+			}
+		},
+	);
+	new Notice(path ? 'Обложка обновлена' : 'Обложка убрана');
+}

@@ -50,6 +50,10 @@ export interface ContentItem {
 	status: ContentStatus;
 	fields: Record<string, string | number>;
 	progress: ProgressValue;
+	/** Оценка 1–5 или null, если не оценено. */
+	rating: number | null;
+	/** Путь обложки из frontmatter ( cover ) или null. */
+	cover: string | null;
 	started: string | null;
 	finished: string | null;
 }

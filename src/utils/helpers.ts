@@ -30,6 +30,36 @@ export function progressText(item: ContentItem): string {
 	return `${current} ${schema.progressUnit}`;
 }
 
+/**
+ * Простой парсер frontmatter из текста заметки — для live preview,
+ * где данные читаются прямо из документа, а не из metadataCache.
+ */
+export function parseFrontmatterText(
+	text: string,
+): Record<string, unknown> | null {
+	const lines = text.split('\n');
+	if (lines[0]?.trim() !== '---') return null;
+	const fm: Record<string, unknown> = {};
+	let closed = false;
+	for (let index = 1; index < lines.length; index++) {
+		const line = lines[index] ?? '';
+		if (line.trim() === '---') {
+			closed = true;
+			break;
+		}
+		const match = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
+		if (!match) continue;
+		const key = match[1] ?? '';
+		const raw = (match[2] ?? '').trim().replace(/^["']|["']$/g, '');
+		if (raw !== '' && Number.isFinite(Number(raw))) {
+			fm[key] = Number(raw);
+		} else {
+			fm[key] = raw;
+		}
+	}
+	return closed ? fm : null;
+}
+
 export function getActiveContentItem(
 	plugin: ContentLogPlugin,
 ): ContentItem | null {

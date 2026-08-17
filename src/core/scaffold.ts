@@ -12,6 +12,7 @@ export interface NewContentInput {
 	title: string;
 	status: ContentStatus;
 	fields: Record<string, string | number>;
+	cover?: string | null;
 }
 
 const ILLEGAL_FILENAME_CHARS = /[\\/:*?"<>|#^[\]]/g;
@@ -93,6 +94,9 @@ export async function createContentItem(
 			if (value !== undefined && value !== '') {
 				fm[field.key] = value;
 			}
+		}
+		if (input.cover) {
+			fm['cover'] = input.cover;
 		}
 		if (input.status === 'in-progress' || input.status === 'finished') {
 			fm['started'] = todayISO();

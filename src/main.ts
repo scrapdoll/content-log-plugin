@@ -13,6 +13,7 @@ import {
 	VIEW_TYPE_CONTENT_DASHBOARD,
 } from './ui/dashboard-view';
 import { registerCardHeader } from './ui/card-header';
+import { registerLivePreviewHeader } from './ui/card-header-live';
 
 export default class ContentLogPlugin extends Plugin {
 	settings!: ContentLogSettings;
@@ -29,6 +30,7 @@ export default class ContentLogPlugin extends Plugin {
 		);
 		registerCommands(this);
 		registerCardHeader(this);
+		registerLivePreviewHeader(this);
 		this.addRibbonIcon('library', 'Открыть дашборд', () => {
 			void openDashboard(this);
 		});
