@@ -12,6 +12,7 @@ import {
 import { CoverSuggestModal } from './cover-picker';
 import { CoverUrlModal } from './cover-url-modal';
 import { ConfirmModal } from './confirm-modal';
+import { SourceFileModal } from './source-file-modal';
 
 /**
  * Модалка создания контента: сначала выбор типа, затем форма с полями
@@ -97,16 +98,24 @@ export class AddContentModal extends Modal {
 			});
 		});
 
-		new Setting(this.contentEl)
+		const sourceSetting = new Setting(this.contentEl)
 			.setName('Источник')
-			.setDesc('Где взять: ссылка или название')
-			.addText((text) => {
-				text.setPlaceholder('Ссылка или текст')
-					.setValue(this.values['source'] ?? '')
-					.onChange((value) => {
-						this.values['source'] = value;
-					});
-			});
+			.setDesc('Где взять: файл, ссылка или название');
+		sourceSetting.addText((text) => {
+			text.setPlaceholder('Файл, ссылка или текст')
+				.setValue(this.values['source'] ?? '')
+				.onChange((value) => {
+					this.values['source'] = value;
+				});
+		});
+		sourceSetting.addButton((button) =>
+			button.setButtonText('Файл').onClick(() => {
+				new SourceFileModal(this.app, (path) => {
+					this.values['source'] = path;
+					this.render();
+				}).open();
+			}),
+		);
 
 		new Setting(this.contentEl).setName('Краткая заметка').addTextArea(
 			(area) => {

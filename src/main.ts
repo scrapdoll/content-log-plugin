@@ -48,6 +48,14 @@ export default class ContentLogPlugin extends Plugin {
 		this.settings.customTypes = Array.isArray(this.settings.customTypes)
 			? [...this.settings.customTypes]
 			: [];
+		this.settings.sourceOpenByExtension =
+			typeof this.settings.sourceOpenByExtension === 'object' &&
+			this.settings.sourceOpenByExtension !== null
+				? { ...this.settings.sourceOpenByExtension }
+				: {};
+		const mode = this.settings.sourceOpenMode;
+		this.settings.sourceOpenMode =
+			mode === 'tab' || mode === 'system' ? mode : 'auto';
 	}
 
 	async saveSettings(): Promise<void> {

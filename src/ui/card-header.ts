@@ -10,6 +10,7 @@ import {
 } from '../core/mutations';
 import { createContentNote } from '../core/notes';
 import { resolveCoverSrc } from '../core/cover';
+import { findSourceFile, isHttpSource, openSource } from '../core/source';
 import { getTypeSchema, isKnownType } from '../core/registry';
 import { UpdateProgressModal } from '../commands/progress';
 import { RateContentModal } from '../commands/rating';
@@ -25,6 +26,8 @@ import {
 } from '../utils/helpers';
 import { CoverSuggestModal } from './cover-picker';
 import { CoverUrlModal } from './cover-url-modal';
+import { appendSourceChip } from './source-chip';
+import { SourceFileModal } from './source-file-modal';
 import { TextInputModal } from './text-input-modal';
 
 /**
@@ -112,6 +115,7 @@ export function buildCardHeaderPanel(
 	if (item.rating !== null) {
 		buildRatingDisplay(plugin, row, item, refresh);
 	}
+	appendSourceChip(plugin, info, item);
 	if (item.description) {
 		info.createDiv({
 			cls: 'cl-card-desc',
@@ -298,17 +302,30 @@ function buildActionsMenu(
 			);
 		}
 
-		if (source && /^https?:\/\//i.test(source)) {
+		if (findSourceFile(plugin.app, item) || isHttpSource(source ?? '')) {
 			menu.addItem((menuItem) =>
 				menuItem
 					.setTitle('Открыть источник')
 					.setIcon('external-link')
 					.setSection('source')
-					.onClick(() => {
-						window.open(source, '_blank');
-					}),
+				.onClick(() => {
+					void openSource(plugin, item);
+				}),
 			);
 		}
+		menu.addItem((menuItem) =>
+			menuItem
+				.setTitle('Источник из файла…')
+				.setIcon('file')
+				.setSection('source')
+				.onClick(() => {
+					new SourceFileModal(plugin.app, (path) => {
+						void writeSource(plugin.app, item, path)
+							.then(refresh)
+							.catch(failLog('source update'));
+					}).open();
+				}),
+		);
 		menu.addItem((menuItem) =>
 			menuItem
 				.setTitle(source ? 'Изменить источник…' : 'Указать источник…')

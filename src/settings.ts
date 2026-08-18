@@ -1,18 +1,29 @@
 import { App, debounce, PluginSettingTab, Setting } from 'obsidian';
 import type ContentLogPlugin from './main';
 import { getAllTypeSchemas, rebuildTypeRegistry } from './core/registry';
+import {
+	SOURCE_EXTENSIONS,
+	type SourceExtensionMode,
+	type SourceOpenMode,
+} from './core/source';
 import type { TypeSchema } from './types';
 import { CustomTypeModal } from './ui/custom-type-modal';
 
 export interface ContentLogSettings {
 	/** Корневая папка контента в vault, например «Content Log». */
 	rootFolder: string;
+	/** Как открывать файлы-источники: авто, вкладка или системное приложение. */
+	sourceOpenMode: SourceOpenMode;
+	/** Отдельный режим открытия по расширению ( epub, fb2, mobi ). */
+	sourceOpenByExtension: Record<string, SourceExtensionMode>;
 	/** Пользовательские типы контента. */
 	customTypes: TypeSchema[];
 }
 
 export const DEFAULT_SETTINGS: ContentLogSettings = {
 	rootFolder: 'Content Log',
+	sourceOpenMode: 'auto',
+	sourceOpenByExtension: {},
 	customTypes: [],
 };
 
@@ -41,6 +52,56 @@ export class ContentLogSettingTab extends PluginSettingTab {
 						}, 500, true),
 					),
 			);
+
+		const group = containerEl.createDiv({ cls: 'cl-settings-group' });
+
+		new Setting(group)
+			.setName('Открытие файлов-источников')
+			.setDesc(
+				'Авто — вкладкой для форматов, которые Obsidian сам отображает ( PDF, картинки, медиа ), остальные — в системном приложении.',
+			)
+			.addDropdown((drop) => {
+				drop.addOption('auto', 'Авто')
+					.addOption('tab', 'Вкладкой в Obsidian')
+					.addOption('system', 'В приложении по умолчанию')
+					.setValue(this.plugin.settings.sourceOpenMode)
+					.onChange(async (value) => {
+						this.plugin.settings.sourceOpenMode =
+							value === 'tab' || value === 'system'
+								? value
+								: 'auto';
+						await this.plugin.saveSettings();
+					});
+			});
+
+		const extensions = group.createEl('details');
+		extensions.createEl('summary', {
+			text: 'Отдельные режимы ( epub, fb2, mobi )',
+		});
+
+		for (const ext of SOURCE_EXTENSIONS) {
+			new Setting(extensions)
+				.setName(ext.toUpperCase())
+				.addDropdown((drop) => {
+					drop.addOption('default', 'Общая настройка')
+						.addOption('tab', 'Вкладкой в Obsidian')
+						.addOption('system', 'В приложении по умолчанию')
+						.setValue(
+							this.plugin.settings.sourceOpenByExtension[ext] ??
+								'default',
+						)
+						.onChange(async (value) => {
+							if (value === 'default') {
+								delete this.plugin.settings
+									.sourceOpenByExtension[ext];
+							} else {
+								this.plugin.settings.sourceOpenByExtension[ext] =
+									value as SourceExtensionMode;
+							}
+							await this.plugin.saveSettings();
+						});
+				});
+		}
 
 		new Setting(containerEl)
 			.setName('Кастомные типы контента')

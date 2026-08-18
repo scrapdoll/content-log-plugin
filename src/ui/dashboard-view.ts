@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { progressPercent, progressText } from '../utils/helpers';
 import { AddContentModal } from './add-content-modal';
+import { appendSourceChip } from './source-chip';
 
 export const VIEW_TYPE_CONTENT_DASHBOARD = 'content-log-dashboard';
 
@@ -379,6 +380,7 @@ export class ContentDashboardView extends ItemView {
 		if (subtitle) {
 			main.createDiv({ cls: 'cl-item-subtitle', text: subtitle });
 		}
+		appendSourceChip(this.plugin, main, item);
 		if (item.description) {
 			main.createDiv({
 				cls: 'cl-item-desc',
@@ -469,6 +471,7 @@ export class ContentDashboardView extends ItemView {
 		}
 
 		const meta = body.createDiv({ cls: 'cl-card-big-meta' });
+		appendSourceChip(this.plugin, meta, item);
 		if (item.rating !== null) {
 			meta.createDiv({
 				cls: 'cl-item-rating',
