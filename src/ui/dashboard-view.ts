@@ -2,6 +2,7 @@ import { ItemView, setIcon, WorkspaceLeaf } from 'obsidian';
 import type ContentLogPlugin from '../main';
 import { exportDashboardMarkdown } from '../commands/export';
 import { resolveCoverSrc } from '../core/cover';
+import { formatHours } from '../core/hltb';
 import { getAllTypeSchemas, getTypeSchema } from '../core/registry';
 import {
 	STATUSES,
@@ -349,6 +350,22 @@ export class ContentDashboardView extends ItemView {
 		return items;
 	}
 
+	/** Компактная строка времён прохождения HowLongToBeat для дашборда. */
+	private hltbTimesText(item: ContentItem): string | null {
+		if (!item.hltb) return null;
+		const parts: string[] = [];
+		if (item.hltb.main !== null) {
+			parts.push(`Сюжет ${formatHours(item.hltb.main)}`);
+		}
+		if (item.hltb.extra !== null) {
+			parts.push(`+ доп. ${formatHours(item.hltb.extra)}`);
+		}
+		if (item.hltb.complete !== null) {
+			parts.push(`100% ${formatHours(item.hltb.complete)}`);
+		}
+		return parts.length > 0 ? parts.join(' · ') : null;
+	}
+
 	private renderItemRow(list: HTMLElement, item: ContentItem): void {
 		const schema = getTypeSchema(item.type);
 		if (!schema) return;
@@ -387,6 +404,10 @@ export class ContentDashboardView extends ItemView {
 				text: item.description,
 				attr: { title: item.description },
 			});
+		}
+		const hltbTimes = this.hltbTimesText(item);
+		if (hltbTimes) {
+			main.createDiv({ cls: 'cl-item-hltb', text: hltbTimes });
 		}
 
 		if (schema.progressField) {
@@ -448,6 +469,10 @@ export class ContentDashboardView extends ItemView {
 			: '';
 		if (subtitle) {
 			body.createDiv({ cls: 'cl-card-big-subtitle', text: subtitle });
+		}
+		const hltbTimes = this.hltbTimesText(item);
+		if (hltbTimes) {
+			body.createDiv({ cls: 'cl-card-big-hltb', text: hltbTimes });
 		}
 		if (item.description) {
 			body.createDiv({

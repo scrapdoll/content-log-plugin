@@ -3,6 +3,7 @@ import type ContentLogPlugin from '../main';
 import { getTypeSchema, isKnownType } from './registry';
 import {
 	type ContentItem,
+	type HltbTimes,
 	type TypeSchema,
 	toStatus,
 } from '../types';
@@ -119,6 +120,7 @@ export function contentItemFromFrontmatter(
 		cover: textOrNull(fm['cover']),
 		source: textOrNull(fm['source']),
 		description: textOrNull(fm['description']),
+		hltb: hltbFromFrontmatter(fm),
 		started: dateString(fm['started']),
 		finished: dateString(fm['finished']),
 	};
@@ -136,6 +138,17 @@ export function parseContentItem(
 
 function numOrNull(value: unknown): number | null {
 	return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function hltbFromFrontmatter(fm: Record<string, unknown>): HltbTimes | null {
+	const id = numOrNull(fm['hltb-id']);
+	const main = numOrNull(fm['hltb-main']);
+	const extra = numOrNull(fm['hltb-extra']);
+	const complete = numOrNull(fm['hltb-complete']);
+	if (id === null && main === null && extra === null && complete === null) {
+		return null;
+	}
+	return { id, main, extra, complete };
 }
 
 function ratingFrom(value: unknown): number | null {

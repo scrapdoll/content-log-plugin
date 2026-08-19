@@ -7,10 +7,12 @@ import {
 	writeCover,
 	writeSource,
 	writeDescription,
+	writeHltb,
 } from '../core/mutations';
 import { createContentNote } from '../core/notes';
 import { resolveCoverSrc } from '../core/cover';
 import { findSourceFile, isHttpSource, openSource } from '../core/source';
+import { formatHours, hltbGameUrl } from '../core/hltb';
 import { getTypeSchema, isKnownType } from '../core/registry';
 import { UpdateProgressModal } from '../commands/progress';
 import { RateContentModal } from '../commands/rating';
@@ -26,6 +28,7 @@ import {
 } from '../utils/helpers';
 import { CoverSuggestModal } from './cover-picker';
 import { CoverUrlModal } from './cover-url-modal';
+import { HltbSearchModal } from './hltb-search-modal';
 import { appendSourceChip } from './source-chip';
 import { SourceFileModal } from './source-file-modal';
 import { TextInputModal } from './text-input-modal';
@@ -115,6 +118,7 @@ export function buildCardHeaderPanel(
 	if (item.rating !== null) {
 		buildRatingDisplay(plugin, row, item, refresh);
 	}
+	buildHltbDisplay(plugin, info, item, refresh);
 	appendSourceChip(plugin, info, item);
 	if (item.description) {
 		info.createDiv({
@@ -206,6 +210,58 @@ function buildRatingDisplay(
 	});
 }
 
+/**
+ * Виджет HowLongToBeat: времена прохождения и ссылка на страницу игры.
+ * Пока данных нет, для игр вместо виджета показывается кнопка генерации.
+ */
+function buildHltbDisplay(
+	plugin: ContentLogPlugin,
+	info: HTMLElement,
+	item: ContentItem,
+	refresh: () => void,
+): void {
+	const hltb = item.hltb;
+	if (!hltb) {
+		if (item.type !== 'game') return;
+		const button = info.createEl('button', {
+			cls: 'cl-chip-button cl-hltb-generate',
+			attr: { 'aria-label': 'Найти данные игры на howlongtobeat.com' },
+		});
+		setIcon(button, 'gamepad-2');
+		button.createSpan({ text: 'Заполнить из howlongtobeat.com…' });
+		button.addEventListener('click', () => {
+			new HltbSearchModal(plugin, item.title, (game) => {
+				void writeHltb(plugin.app, item, game)
+					.then(refresh)
+					.catch(failLog('hltb update'));
+			}).open();
+		});
+		return;
+	}
+
+	const block = info.createDiv({ cls: 'cl-hltb' });
+	const cell = (label: string, hours: number | null): void => {
+		const element = block.createDiv({ cls: 'cl-hltb-cell' });
+		element.createSpan({ cls: 'cl-hltb-label', text: label });
+		element.createSpan({ cls: 'cl-hltb-value', text: formatHours(hours) });
+	};
+	cell('Сюжет', hltb.main);
+	cell('+ дополнения', hltb.extra);
+	cell('100%', hltb.complete);
+	if (hltb.id !== null) {
+		block.createEl('a', {
+			cls: 'cl-hltb-link',
+			text: 'Открыть на howlongtobeat.com',
+			attr: {
+				href: hltbGameUrl(hltb.id),
+				target: '_blank',
+				rel: 'noopener',
+				title: 'Страница игры',
+			},
+		});
+	}
+}
+
 /** Меню «⋯» со всеми действиями над карточкой. */
 function buildActionsMenu(
 	plugin: ContentLogPlugin,
@@ -252,15 +308,35 @@ function buildActionsMenu(
 			);
 		}
 
-		menu.addItem((menuItem) =>
-			menuItem
-				.setTitle('Оценить…')
-				.setIcon('star')
-				.setSection('rating')
-				.onClick(() => {
-					new RateContentModal(plugin.app, item, refresh).open();
-				}),
-		);
+			menu.addItem((menuItem) =>
+				menuItem
+					.setTitle('Оценить…')
+					.setIcon('star')
+					.setSection('rating')
+					.onClick(() => {
+						new RateContentModal(plugin.app, item, refresh).open();
+					}),
+			);
+
+			if (item.type === 'game') {
+				menu.addItem((menuItem) =>
+					menuItem
+						.setTitle('Найти на howlongtobeat.com…')
+						.setIcon('gamepad-2')
+						.setSection('hltb')
+						.onClick(() => {
+							new HltbSearchModal(
+								plugin,
+								item.title,
+								(game) => {
+									void writeHltb(plugin.app, item, game)
+										.then(refresh)
+										.catch(failLog('hltb update'));
+								},
+							).open();
+						}),
+				);
+			}
 
 		menu.addItem((menuItem) =>
 			menuItem

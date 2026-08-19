@@ -36,7 +36,11 @@ class CardHeaderWidget extends WidgetType {
 			a.rating === b.rating &&
 			a.cover === b.cover &&
 			a.source === b.source &&
-			a.description === b.description
+			a.description === b.description &&
+			a.hltb?.id === b.hltb?.id &&
+			a.hltb?.main === b.hltb?.main &&
+			a.hltb?.extra === b.hltb?.extra &&
+			a.hltb?.complete === b.hltb?.complete
 		);
 	}
 

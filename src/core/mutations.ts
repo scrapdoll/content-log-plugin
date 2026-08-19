@@ -1,5 +1,6 @@
 import { App, Notice } from 'obsidian';
 import { getTypeSchema } from './registry';
+import { type HltbGame } from './hltb';
 import {
 	type ContentItem,
 	type ContentStatus,
@@ -149,4 +150,39 @@ export async function writeDescription(
 		},
 	);
 	new Notice(value ? 'Описание обновлено' : 'Описание убрано');
+}
+
+/**
+ * Записывает данные HowLongToBeat: id игры и времена прохождения.
+ * Обложку ставит ссылкой на CDN сайта ( только если обложки ещё нет );
+ * краткую заметку пользователя не трогает.
+ */
+export async function writeHltb(
+	app: App,
+	item: ContentItem,
+	game: HltbGame,
+): Promise<void> {
+	await app.fileManager.processFrontMatter(
+		item.file,
+		(fm: Record<string, unknown>) => {
+			fm['hltb-id'] = game.id;
+			writeHours(fm, 'hltb-main', game.mainHours);
+			writeHours(fm, 'hltb-extra', game.extraHours);
+			writeHours(fm, 'hltb-complete', game.completeHours);
+			if (!fm['cover']) fm['cover'] = game.imageUrl;
+		},
+	);
+	new Notice('Данные howlongtobeat.com записаны');
+}
+
+function writeHours(
+	fm: Record<string, unknown>,
+	key: string,
+	hours: number | null,
+): void {
+	if (hours === null) {
+		delete fm[key];
+	} else {
+		fm[key] = hours;
+	}
 }

@@ -43,6 +43,14 @@ export interface ProgressValue {
 	total: number | null;
 }
 
+/** Времена прохождения из HowLongToBeat в часах; null — нет данных. */
+export interface HltbTimes {
+	id: number | null;
+	main: number | null;
+	extra: number | null;
+	complete: number | null;
+}
+
 export interface ContentItem {
 	file: TFile;
 	type: ContentTypeId;
@@ -58,6 +66,8 @@ export interface ContentItem {
 	source: string | null;
 	/** Краткое описание из frontmatter ( description ) или null. */
 	description: string | null;
+	/** Данные HowLongToBeat ( hltb-* ) или null, если их нет. */
+	hltb: HltbTimes | null;
 	started: string | null;
 	finished: string | null;
 }
