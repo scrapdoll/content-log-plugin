@@ -70,6 +70,7 @@ export class Notice {
 
 export const Platform = {
 	isDesktopApp: false,
+	isMobile: false,
 };
 
 export function getFrontMatterInfo(content: string): {

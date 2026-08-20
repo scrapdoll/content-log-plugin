@@ -76,7 +76,7 @@ export class ContentLogSettingTab extends PluginSettingTab {
 
 		const extensions = group.createEl('details');
 		extensions.createEl('summary', {
-			text: 'Отдельные режимы ( epub, fb2, mobi )',
+			text: 'Отдельные режимы ( epub, fb2, mobi, azw3 )',
 		});
 
 		for (const ext of SOURCE_EXTENSIONS) {

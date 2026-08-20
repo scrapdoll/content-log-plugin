@@ -1,4 +1,4 @@
-import { Menu, setIcon } from 'obsidian';
+import { Menu, Notice, setIcon, type TFile } from 'obsidian';
 import type ContentLogPlugin from '../main';
 import { UpdateProgressModal } from '../commands/progress';
 import { RateContentModal } from '../commands/rating';
@@ -7,16 +7,22 @@ import {
 	writeDescription,
 	writeHltb,
 	writeProgress,
+	writeProgressTotal,
 	writeSource,
 } from '../core/mutations';
 import { createContentNote } from '../core/notes';
 import { getTypeSchema } from '../core/registry';
 import { findSourceFile, isHttpSource, openSource } from '../core/source';
+import { SUPPORTED_BOOK_EXTENSIONS } from '../core/book-import/types';
+import { frontmatterRepository } from '../core/frontmatter';
 import type { ContentItem } from '../types';
+import { progressText } from '../utils/helpers';
 import { failLog } from './action-errors';
 import { CoverSuggestModal } from './cover-picker';
 import { CoverUrlModal } from './cover-url-modal';
 import { HltbSearchModal } from './hltb-search-modal';
+import { NumberInputModal } from './number-input-modal';
+import { BookImportModal } from './book-import-modal';
 import { SourceFileModal } from './source-file-modal';
 import { TextInputModal } from './text-input-modal';
 
@@ -61,6 +67,31 @@ export function buildCardActionsMenu(
 					.setSection('progress')
 					.onClick(() => {
 						new UpdateProgressModal(plugin.app, item, refresh).open();
+					}),
+			);
+		}
+
+		if (schema?.progressTotalField) {
+			const totalField = schema.fields.find(
+				(field) => field.key === schema.progressTotalField,
+			);
+			menu.addItem((menuItem) =>
+				menuItem
+					.setTitle(`${totalField?.label ?? 'Общее количество'}…`)
+					.setIcon('pencil')
+					.setSection('progress')
+					.onClick(() => {
+						new NumberInputModal(plugin.app, {
+							title: `${totalField?.label ?? 'Общее количество'} — ${item.title}`,
+							value: item.progress.total,
+							placeholder: totalField?.placeholder ?? '',
+							hint: `Сейчас: ${progressText(item)}. Пустое поле убирает значение.`,
+							onSave: (value) => {
+								void writeProgressTotal(plugin.app, item, value)
+									.then(refresh)
+									.catch(failLog('progress total update'));
+							},
+						}).open();
 					}),
 			);
 		}
@@ -152,7 +183,8 @@ function addSourceActions(
 	refresh: () => void,
 ): void {
 	const source = item.source;
-	if (findSourceFile(plugin.app, item) || isHttpSource(source ?? '')) {
+	const sourceFile = findSourceFile(plugin.app, item);
+	if (sourceFile || isHttpSource(source ?? '')) {
 		menu.addItem((menuItem) =>
 			menuItem
 				.setTitle('Открыть источник')
@@ -160,6 +192,21 @@ function addSourceActions(
 				.setSection('source')
 				.onClick(() => {
 					void openSource(plugin, item);
+				}),
+		);
+	}
+	if (
+		item.type === 'book' &&
+		sourceFile &&
+		SUPPORTED_BOOK_EXTENSIONS.has(sourceFile.extension.toLowerCase())
+	) {
+		menu.addItem((menuItem) =>
+			menuItem
+				.setTitle('Извлечь данные из источника…')
+				.setIcon('scan-text')
+				.setSection('source')
+				.onClick(() => {
+					void openBookImport(plugin, item, sourceFile, refresh);
 				}),
 		);
 	}
@@ -206,6 +253,34 @@ function addSourceActions(
 						.catch(failLog('source update'));
 				}),
 		);
+	}
+}
+
+async function openBookImport(
+	plugin: ContentLogPlugin,
+	item: ContentItem,
+	sourceFile: TFile,
+	refresh: () => void,
+): Promise<void> {
+	const notice = new Notice('Извлекаю данные книги…', 0);
+	try {
+		const { extractBookFile } = await import('../core/book-import');
+		const [extraction, current] = await Promise.all([
+			extractBookFile(plugin.app, sourceFile),
+			frontmatterRepository(plugin.app).read(item.file),
+		]);
+		notice.hide();
+		new BookImportModal(
+			plugin.app,
+			item,
+			extraction,
+			current ?? {},
+			refresh,
+		).open();
+	} catch (error) {
+		notice.hide();
+		console.error('content-log: book metadata extraction failed', error);
+		new Notice('Не удалось извлечь данные книги');
 	}
 }
 

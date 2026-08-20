@@ -45,7 +45,7 @@ export type SourceOpenMode = 'auto' | 'tab' | 'system';
 export type SourceExtensionMode = 'tab' | 'system';
 
 /** Расширения-источники с отдельной настройкой открытия в меню карточки. */
-export const SOURCE_EXTENSIONS = ['epub', 'fb2', 'mobi'] as const;
+export const SOURCE_EXTENSIONS = ['epub', 'fb2', 'mobi', 'azw3'] as const;
 
 /**
  * Открывает источник: файл — сначала настройка расширения, при

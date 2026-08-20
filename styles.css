@@ -917,6 +917,62 @@ button.cl-source-chip:hover {
 	white-space: nowrap;
 }
 
+/* Content Log — импорт данных книги */
+
+.cl-book-import-modal-shell {
+	width: min(760px, 94vw);
+}
+
+.cl-book-import-info {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 4px 12px;
+	margin: 0 0 10px;
+	font-size: 0.85em;
+}
+
+.cl-book-import-info dt {
+	color: var(--text-muted);
+}
+
+.cl-book-import-info dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.cl-book-import-warnings {
+	margin: 8px 0 12px;
+	padding-left: 22px;
+	color: var(--text-warning);
+	font-size: 0.85em;
+}
+
+.cl-book-import-modal .setting-item-description {
+	overflow-wrap: anywhere;
+}
+
+.cl-book-import-cover-info {
+	display: grid;
+	grid-template-columns: 56px minmax(0, 1fr);
+	column-gap: 12px;
+	align-items: start;
+}
+
+.cl-book-import-cover-info .setting-item-name,
+.cl-book-import-cover-info .setting-item-description {
+	grid-column: 2;
+}
+
+.cl-book-import-cover-thumb {
+	grid-column: 1;
+	grid-row: 1 / span 2;
+	width: 56px;
+	height: 78px;
+	object-fit: cover;
+	border-radius: 4px;
+	background: var(--background-modifier-border);
+}
+
 .cl-card-big-hltb {
 	color: var(--text-muted);
 	font-size: 0.78em;

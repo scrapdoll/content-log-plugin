@@ -46,6 +46,54 @@ export async function writeProgress(
 	new Notice(`Прогресс: ${next} ${schema.progressUnit}`);
 }
 
+/**
+ * Меняет общую величину прогресса ( у книг — всего страниц ). Пустое
+ * значение убирает поле. Прочитанное при необходимости ужимается до
+ * новой величины, чтобы прогресс не превышал 100%.
+ */
+export async function writeProgressTotal(
+	app: App,
+	item: ContentItem,
+	value: number | null,
+): Promise<void> {
+	const schema = getTypeSchema(item.type);
+	const field = schema?.progressTotalField;
+	const progressField = schema?.progressField;
+	if (!schema || !field || !progressField) return;
+
+	const total =
+		value !== null ? Math.max(0, Math.round(value * 100) / 100) : null;
+	const today = todayISO();
+	await frontmatterRepository(app).update(
+		item.file,
+		(fm: Record<string, unknown>) => {
+			if (total !== null && total > 0) {
+				fm[field] = total;
+			} else {
+				delete fm[field];
+			}
+			const readValue = fm[progressField];
+			const read =
+				typeof readValue === 'number' && Number.isFinite(readValue)
+					? readValue
+					: null;
+			if (total !== null && read !== null && read > total) {
+				applyProgressChange(
+					fm,
+					{ progressField, progressTotalField: field },
+					total,
+					today,
+				);
+			}
+		},
+	);
+	new Notice(
+		total !== null && total > 0
+			? `Всего: ${total} ${schema.progressUnit}`
+			: 'Общее количество убрано',
+	);
+}
+
 /** Меняет статус и поддерживает даты started/finished в согласованном виде. */
 export async function writeStatus(
 	app: App,
