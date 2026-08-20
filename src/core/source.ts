@@ -1,4 +1,10 @@
-import { App, FileSystemAdapter, Notice, Platform, TFile } from 'obsidian';
+import {
+	type App,
+	type FileSystemAdapter,
+	Notice,
+	Platform,
+	TFile,
+} from 'obsidian';
 import type ContentLogPlugin from '../main';
 import type { ContentItem } from '../types';
 
@@ -59,29 +65,24 @@ export async function openSource(
 		const override =
 			plugin.settings.sourceOpenByExtension[
 				file.extension.toLowerCase()
-			];
+		];
 		if (override === 'tab') {
-			await openFileInTab(app, file);
-			return true;
+			return openFileInTab(app, file);
 		}
 		if (override === 'system') {
-			openInSystemApp(app, file);
-			return true;
+			return openInSystemApp(app, file);
 		}
 		switch (plugin.settings.sourceOpenMode) {
 			case 'tab':
-				await openFileInTab(app, file);
-				return true;
+				return openFileInTab(app, file);
 			case 'system':
-				openInSystemApp(app, file);
-				return true;
+				return openInSystemApp(app, file);
 			default:
 				if (obsidianViewType(app, file.extension)) {
-					await openFileInTab(app, file);
+					return openFileInTab(app, file);
 				} else {
-					openInSystemApp(app, file);
+					return openInSystemApp(app, file);
 				}
-				return true;
 		}
 	}
 	if (item.source && isHttpSource(item.source)) {
@@ -107,7 +108,7 @@ function obsidianViewType(app: App, extension: string): string | null {
  * ( так делает встроенный плагин «Open in default app», путь внутри
  * vault ), при его отсутствии — через Electron shell.
  */
-function openInSystemApp(app: App, file: TFile): boolean {
+async function openInSystemApp(app: App, file: TFile): Promise<boolean> {
 	const withDefaultApp = app as unknown as {
 		openWithDefaultApp?: (path: string) => void;
 	};
@@ -115,14 +116,18 @@ function openInSystemApp(app: App, file: TFile): boolean {
 		withDefaultApp.openWithDefaultApp(file.path);
 		return true;
 	}
-	return openViaElectronShell(app, file);
+	const opened = await openViaElectronShell(app, file);
+	if (!opened) {
+		new Notice('Системное открытие этого файла недоступно');
+	}
+	return opened;
 }
 
 /**
  * Запасной путь системного открытия через Electron ( только desktop ).
  * false — системное открытие недоступно.
  */
-function openViaElectronShell(app: App, file: TFile): boolean {
+async function openViaElectronShell(app: App, file: TFile): Promise<boolean> {
 	if (!Platform.isDesktopApp) return false;
 	const nodeRequire = (
 		window as unknown as {
@@ -145,11 +150,11 @@ function openViaElectronShell(app: App, file: TFile): boolean {
 		}
 		// shell.openPath нужен абсолютный путь ОС, а не путь внутри vault.
 		const fullPath = `${adapter.getBasePath()}/${file.path}`;
-		void shell.openPath(fullPath).then((errorMessage) => {
-			if (errorMessage) {
-				new Notice(`Не удалось открыть файл: ${errorMessage}`);
-			}
-		});
+		const errorMessage = await shell.openPath(fullPath);
+		if (errorMessage) {
+			console.error(`content-log: system open failed: ${errorMessage}`);
+			return false;
+		}
 		return true;
 	} catch (error) {
 		console.error('content-log: system open failed', error);
@@ -157,12 +162,14 @@ function openViaElectronShell(app: App, file: TFile): boolean {
 	return false;
 }
 
-async function openFileInTab(app: App, file: TFile): Promise<void> {
+async function openFileInTab(app: App, file: TFile): Promise<boolean> {
 	try {
 		await app.workspace.getLeaf('tab').openFile(file);
+		return true;
 	} catch (error) {
 		console.error('content-log: open source failed', error);
 		new Notice('Не удалось открыть источник');
+		return false;
 	}
 }
 

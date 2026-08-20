@@ -1,4 +1,4 @@
-import { App, debounce, Events, TFile } from 'obsidian';
+import { App, debounce, Events, TFile, TFolder } from 'obsidian';
 import type ContentLogPlugin from '../main';
 import { getTypeSchema, isKnownType } from './registry';
 import {
@@ -8,6 +8,12 @@ import {
 	toStatus,
 } from '../types';
 import { normalizeRoot } from '../utils/helpers';
+import { frontmatterRepository } from './frontmatter';
+import {
+	isContentCardPath,
+	isInsideRoot,
+	removeIndexedPath,
+} from './index-state';
 
 const REFRESH_DELAY_MS = 400;
 
@@ -17,8 +23,9 @@ const REFRESH_DELAY_MS = 400;
  */
 export class ContentIndex extends Events {
 	private items = new Map<string, ContentItem>();
+	private pendingPaths = new Set<string>();
 	private scheduleRefresh = debounce(
-		() => this.rebuild(),
+		() => this.flushPendingPaths(),
 		REFRESH_DELAY_MS,
 		true,
 	);
@@ -63,11 +70,9 @@ export class ContentIndex extends Events {
 			this.trigger('changed');
 			return;
 		}
-		for (const file of vault.getMarkdownFiles()) {
-			if (!file.path.startsWith(`${root}/`)) continue;
-			if (file.path.includes('/Notes/')) continue;
-			const item = parseContentItem(this.plugin.app, file);
-			if (item) this.items.set(file.path, item);
+		const rootFolder = vault.getAbstractFileByPath(root);
+		if (rootFolder instanceof TFolder) {
+			this.visitFolder(root, rootFolder);
 		}
 		this.trigger('changed');
 	}
@@ -75,8 +80,57 @@ export class ContentIndex extends Events {
 	private maybeRefresh(...paths: string[]): void {
 		const root = normalizeRoot(this.plugin.settings.rootFolder);
 		if (!root) return;
-		if (paths.some((p) => p === root || p.startsWith(`${root}/`))) {
+		let queued = false;
+		for (const path of paths) {
+			if (!isInsideRoot(root, path)) continue;
+			this.pendingPaths.add(path);
+			queued = true;
+		}
+		if (queued) {
 			this.scheduleRefresh();
+		}
+	}
+
+	private flushPendingPaths(): void {
+		const root = normalizeRoot(this.plugin.settings.rootFolder);
+		const paths = [...this.pendingPaths];
+		this.pendingPaths.clear();
+		if (!root || paths.length === 0) return;
+
+		const { vault } = this.plugin.app;
+		let touched = false;
+		for (const path of paths) {
+			if (!isInsideRoot(root, path)) continue;
+			touched = true;
+			const entry = vault.getAbstractFileByPath(path);
+			if (entry instanceof TFile && isContentCardPath(root, path)) {
+				const item = parseContentItem(this.plugin.app, entry);
+				if (item) {
+					this.items.set(path, item);
+				} else {
+					this.items.delete(path);
+				}
+			} else if (entry instanceof TFolder) {
+				removeIndexedPath(this.items, path);
+				this.visitFolder(root, entry);
+			} else if (!entry) {
+				removeIndexedPath(this.items, path);
+			}
+		}
+		if (touched) this.trigger('changed');
+	}
+
+	private visitFolder(root: string, folder: TFolder): void {
+		for (const child of folder.children) {
+			if (child instanceof TFolder) {
+				if (child.name !== 'Notes') this.visitFolder(root, child);
+				continue;
+			}
+			if (!(child instanceof TFile) || !isContentCardPath(root, child.path)) {
+				continue;
+			}
+			const item = parseContentItem(this.plugin.app, child);
+			if (item) this.items.set(child.path, item);
 		}
 	}
 }
@@ -131,7 +185,7 @@ export function parseContentItem(
 	file: TFile,
 ): ContentItem | null {
 	const fm: Record<string, unknown> | undefined =
-		app.metadataCache.getFileCache(file)?.frontmatter;
+		frontmatterRepository(app).readCached(file) ?? undefined;
 	if (!fm) return null;
 	return contentItemFromFrontmatter(file, fm);
 }

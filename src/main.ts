@@ -5,6 +5,8 @@ import {
 	DEFAULT_SETTINGS,
 } from './settings';
 import { rebuildTypeRegistry } from './core/registry';
+import { normalizeTypeSchemas } from './core/type-schema';
+import { BUILTIN_TYPES } from './types';
 import { ContentIndex } from './core/index';
 import { registerCommands } from './commands';
 import {
@@ -45,9 +47,10 @@ export default class ContentLogPlugin extends Plugin {
 			DEFAULT_SETTINGS,
 			(await this.loadData()) as Partial<ContentLogSettings>,
 		);
-		this.settings.customTypes = Array.isArray(this.settings.customTypes)
-			? [...this.settings.customTypes]
-			: [];
+		this.settings.customTypes = normalizeTypeSchemas(
+			this.settings.customTypes,
+			BUILTIN_TYPES.map((schema) => schema.id),
+		);
 		this.settings.sourceOpenByExtension =
 			typeof this.settings.sourceOpenByExtension === 'object' &&
 			this.settings.sourceOpenByExtension !== null

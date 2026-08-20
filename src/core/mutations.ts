@@ -7,6 +7,11 @@ import {
 	statusLabel,
 } from '../types';
 import { todayISO } from '../utils/helpers';
+import {
+	applyProgressChange,
+	applyStatusChange,
+} from './frontmatter-transitions';
+import { frontmatterRepository } from './frontmatter';
 
 /**
  * Записывает прогресс в frontmatter карточки. При выходе на полную
@@ -21,24 +26,21 @@ export async function writeProgress(
 	const field = schema?.progressField;
 	if (!schema || !field) return;
 
-	let next = Math.max(0, Math.round(value * 100) / 100);
-	if (item.progress.total !== null) {
-		next = Math.min(next, item.progress.total);
-	}
+	let next = 0;
+	const today = todayISO();
 
-	await app.fileManager.processFrontMatter(
+	await frontmatterRepository(app).update(
 		item.file,
 		(fm: Record<string, unknown>) => {
-			fm[field] = next;
-		if (item.status === 'planned' && next > 0) {
-			fm['status'] = 'in-progress';
-			if (!fm['started']) fm['started'] = todayISO();
-		}
-			if (item.progress.total !== null && next >= item.progress.total) {
-				fm['status'] = 'finished';
-				fm['finished'] = todayISO();
-				if (!fm['started']) fm['started'] = todayISO();
-			}
+			next = applyProgressChange(
+				fm,
+				{
+					progressField: field,
+					progressTotalField: schema.progressTotalField,
+				},
+				value,
+				today,
+			);
 		},
 	);
 	new Notice(`Прогресс: ${next} ${schema.progressUnit}`);
@@ -50,26 +52,11 @@ export async function writeStatus(
 	item: ContentItem,
 	status: ContentStatus,
 ): Promise<void> {
-	await app.fileManager.processFrontMatter(
+	const today = todayISO();
+	await frontmatterRepository(app).update(
 		item.file,
 		(fm: Record<string, unknown>) => {
-			fm['status'] = status;
-			switch (status) {
-				case 'planned':
-					delete fm['started'];
-					delete fm['finished'];
-					break;
-				case 'in-progress':
-					if (!fm['started']) fm['started'] = todayISO();
-					delete fm['finished'];
-					break;
-				case 'finished':
-					if (!fm['started']) fm['started'] = todayISO();
-					fm['finished'] = todayISO();
-					break;
-				case 'abandoned':
-					break;
-			}
+			applyStatusChange(fm, status, today);
 		},
 	);
 	new Notice(`Статус: ${statusLabel(status)}`);
@@ -82,7 +69,7 @@ export async function writeRating(
 	rating: number,
 ): Promise<void> {
 	const valid = rating >= 1 && rating <= 5;
-	await app.fileManager.processFrontMatter(
+	await frontmatterRepository(app).update(
 		item.file,
 		(fm: Record<string, unknown>) => {
 			if (valid) {
@@ -101,7 +88,7 @@ export async function writeCover(
 	item: ContentItem,
 	path: string | null,
 ): Promise<void> {
-	await app.fileManager.processFrontMatter(
+	await frontmatterRepository(app).update(
 		item.file,
 		(fm: Record<string, unknown>) => {
 			if (path) {
@@ -120,7 +107,7 @@ export async function writeSource(
 	item: ContentItem,
 	value: string | null,
 ): Promise<void> {
-	await app.fileManager.processFrontMatter(
+	await frontmatterRepository(app).update(
 		item.file,
 		(fm: Record<string, unknown>) => {
 			if (value) {
@@ -139,7 +126,7 @@ export async function writeDescription(
 	item: ContentItem,
 	value: string | null,
 ): Promise<void> {
-	await app.fileManager.processFrontMatter(
+	await frontmatterRepository(app).update(
 		item.file,
 		(fm: Record<string, unknown>) => {
 			if (value) {
@@ -162,7 +149,7 @@ export async function writeHltb(
 	item: ContentItem,
 	game: HltbGame,
 ): Promise<void> {
-	await app.fileManager.processFrontMatter(
+	await frontmatterRepository(app).update(
 		item.file,
 		(fm: Record<string, unknown>) => {
 			fm['hltb-id'] = game.id;

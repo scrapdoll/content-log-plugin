@@ -6,6 +6,7 @@ import {
 } from '../types';
 import { renderCardTemplate } from './templates';
 import { normalizeRoot, todayISO } from '../utils/helpers';
+import { frontmatterRepository } from './frontmatter';
 
 export interface NewContentInput {
 	type: ContentTypeId;
@@ -85,7 +86,7 @@ export async function createContentItem(
 		renderCardTemplate(input.type, { title }),
 	);
 
-	await app.fileManager.processFrontMatter(
+	await frontmatterRepository(app).update(
 		file,
 		(fm: Record<string, unknown>) => {
 		fm['type'] = input.type;

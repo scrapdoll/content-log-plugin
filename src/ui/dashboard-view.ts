@@ -1,41 +1,26 @@
 import { ItemView, setIcon, WorkspaceLeaf } from 'obsidian';
 import type ContentLogPlugin from '../main';
 import { exportDashboardMarkdown } from '../commands/export';
-import { resolveCoverSrc } from '../core/cover';
-import { formatHours } from '../core/hltb';
-import { getAllTypeSchemas, getTypeSchema } from '../core/registry';
+import { getAllTypeSchemas } from '../core/registry';
 import {
 	STATUSES,
-	type ContentItem,
 	type ContentStatus,
-	statusLabel,
 } from '../types';
-import { progressPercent, progressText } from '../utils/helpers';
 import { AddContentModal } from './add-content-modal';
-import { appendSourceChip } from './source-chip';
+import {
+	completionMonths,
+	selectDashboardItems,
+	type SortKey,
+	type StatusFilter,
+	type TypeFilter,
+	type ViewMode,
+} from './dashboard-model';
+import {
+	renderDashboardItemCard,
+	renderDashboardItemRow,
+} from './dashboard-items';
 
 export const VIEW_TYPE_CONTENT_DASHBOARD = 'content-log-dashboard';
-
-/** 'All' либо id типа контента. */
-type TypeFilter = string;
-type StatusFilter = ContentStatus | 'All';
-type SortKey = 'Updated' | 'Title' | 'Progress';
-type ViewMode = 'List' | 'Cards';
-
-const MONTH_LABELS = [
-	'янв',
-	'фев',
-	'мар',
-	'апр',
-	'май',
-	'июн',
-	'июл',
-	'авг',
-	'сен',
-	'окт',
-	'ноя',
-	'дек',
-];
 
 /** Живой дашборд со всем контентом: статистика, график, фильтры, обложки. */
 export class ContentDashboardView extends ItemView {
@@ -258,18 +243,7 @@ export class ContentDashboardView extends ItemView {
 
 	/** Столбчатый график «завершено по месяцам» за последние 12 месяцев. */
 	private renderChart(): void {
-		const all = this.plugin.index.getAll();
-		const now = new Date();
-		const months: { key: string; label: string; count: number }[] = [];
-		for (let offset = 11; offset >= 0; offset--) {
-			const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-			const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-			months.push({
-				key,
-				label: MONTH_LABELS[date.getMonth()] ?? '',
-				count: all.filter((item) => item.finished?.startsWith(key)).length,
-			});
-		}
+		const months = completionMonths(this.plugin.index.getAll(), new Date());
 
 		const wrap = this.contentEl.createDiv({ cls: 'cl-chart-wrap' });
 		wrap.createDiv({ cls: 'cl-chart-title', text: 'Завершено по месяцам' });
@@ -294,7 +268,12 @@ export class ContentDashboardView extends ItemView {
 		list.removeClass('cl-list', 'cl-cards-grid');
 		list.addClass(this.viewMode === 'Cards' ? 'cl-cards-grid' : 'cl-list');
 
-		const items = this.filteredItems();
+		const items = selectDashboardItems(this.plugin.index.getAll(), {
+			type: this.filterType,
+			status: this.filterStatus,
+			minimumRating: this.filterRating,
+			sort: this.sortBy,
+		});
 		if (items.length === 0) {
 			const empty = list.createDiv({ cls: 'cl-empty' });
 			empty.createEl('p', {
@@ -311,202 +290,13 @@ export class ContentDashboardView extends ItemView {
 		}
 		if (this.viewMode === 'Cards') {
 			for (const item of items) {
-				this.renderItemCard(list, item);
+				renderDashboardItemCard(this.plugin, list, item);
 			}
 		} else {
 			for (const item of items) {
-				this.renderItemRow(list, item);
+				renderDashboardItemRow(this.plugin, list, item);
 			}
 		}
-	}
-
-	private filteredItems(): ContentItem[] {
-		let items = this.plugin.index.getAll();
-		if (this.filterType !== 'All') {
-			items = items.filter((item) => item.type === this.filterType);
-		}
-		if (this.filterStatus !== 'All') {
-			items = items.filter((item) => item.status === this.filterStatus);
-		}
-		if (this.filterRating !== 'All') {
-			const min = Number(this.filterRating);
-			items = items.filter(
-				(item) => item.rating !== null && item.rating >= min,
-			);
-		}
-		const collator = new Intl.Collator('ru', { sensitivity: 'base' });
-		switch (this.sortBy) {
-			case 'Title':
-				items.sort((a, b) => collator.compare(a.title, b.title));
-				break;
-			case 'Progress':
-				items.sort(
-					(a, b) => progressPercent(b) - progressPercent(a),
-				);
-				break;
-			default:
-				items.sort((a, b) => b.file.stat.mtime - a.file.stat.mtime);
-		}
-		return items;
-	}
-
-	/** Компактная строка времён прохождения HowLongToBeat для дашборда. */
-	private hltbTimesText(item: ContentItem): string | null {
-		if (!item.hltb) return null;
-		const parts: string[] = [];
-		if (item.hltb.main !== null) {
-			parts.push(`Сюжет ${formatHours(item.hltb.main)}`);
-		}
-		if (item.hltb.extra !== null) {
-			parts.push(`+ доп. ${formatHours(item.hltb.extra)}`);
-		}
-		if (item.hltb.complete !== null) {
-			parts.push(`100% ${formatHours(item.hltb.complete)}`);
-		}
-		return parts.length > 0 ? parts.join(' · ') : null;
-	}
-
-	private renderItemRow(list: HTMLElement, item: ContentItem): void {
-		const schema = getTypeSchema(item.type);
-		if (!schema) return;
-		const row = list.createDiv({ cls: 'cl-item' });
-		row.addEventListener('click', () => {
-			void this.app.workspace.getLeaf('tab').openFile(item.file);
-		});
-
-		const coverSrc = resolveCoverSrc(this.app, item);
-		if (coverSrc) {
-			row.createEl('img', {
-				cls: 'cl-item-cover',
-				attr: {
-					src: coverSrc,
-					alt: item.title,
-					loading: 'lazy',
-				},
-			});
-		} else {
-			const icon = row.createDiv({ cls: 'cl-item-icon' });
-			setIcon(icon, schema.icon);
-		}
-
-		const main = row.createDiv({ cls: 'cl-item-main' });
-		main.createDiv({ cls: 'cl-item-title', text: item.title });
-		const subtitle = schema.subtitleField
-			? String(item.fields[schema.subtitleField] ?? '')
-			: '';
-		if (subtitle) {
-			main.createDiv({ cls: 'cl-item-subtitle', text: subtitle });
-		}
-		appendSourceChip(this.plugin, main, item);
-		if (item.description) {
-			main.createDiv({
-				cls: 'cl-item-desc',
-				text: item.description,
-				attr: { title: item.description },
-			});
-		}
-		const hltbTimes = this.hltbTimesText(item);
-		if (hltbTimes) {
-			main.createDiv({ cls: 'cl-item-hltb', text: hltbTimes });
-		}
-
-		if (schema.progressField) {
-			const progress = row.createDiv({ cls: 'cl-item-progress' });
-			if (item.progress.total) {
-				const bar = progress.createDiv({ cls: 'cl-progress' });
-				const fill = bar.createDiv({ cls: 'cl-progress-fill' });
-				fill.style.width = `${progressPercent(item)}%`;
-			}
-			progress.createDiv({
-				cls: 'cl-item-progress-label',
-				text: progressText(item),
-			});
-		}
-
-		if (item.rating !== null) {
-			row.createDiv({
-				cls: 'cl-item-rating',
-				text: '★'.repeat(item.rating) + '☆'.repeat(5 - item.rating),
-			});
-		}
-
-		row.createDiv({
-			cls: `cl-status cl-status--${item.status}`,
-			text: statusLabel(item.status),
-		});
-	}
-
-	/** Большая карточка с превью обложки для режима «Карточки». */
-	private renderItemCard(list: HTMLElement, item: ContentItem): void {
-		const schema = getTypeSchema(item.type);
-		if (!schema) return;
-		const card = list.createDiv({ cls: 'cl-card-big' });
-		card.addEventListener('click', () => {
-			void this.app.workspace.getLeaf('tab').openFile(item.file);
-		});
-
-		const coverSrc = resolveCoverSrc(this.app, item);
-		if (coverSrc) {
-			card.createEl('img', {
-				cls: 'cl-card-big-cover',
-				attr: {
-					src: coverSrc,
-					alt: item.title,
-					loading: 'lazy',
-				},
-			});
-		} else {
-			const placeholder = card.createDiv({
-				cls: 'cl-card-big-cover cl-card-big-cover--empty',
-			});
-			setIcon(placeholder, schema.icon);
-		}
-
-		const body = card.createDiv({ cls: 'cl-card-big-body' });
-		body.createDiv({ cls: 'cl-card-big-title', text: item.title });
-		const subtitle = schema.subtitleField
-			? String(item.fields[schema.subtitleField] ?? '')
-			: '';
-		if (subtitle) {
-			body.createDiv({ cls: 'cl-card-big-subtitle', text: subtitle });
-		}
-		const hltbTimes = this.hltbTimesText(item);
-		if (hltbTimes) {
-			body.createDiv({ cls: 'cl-card-big-hltb', text: hltbTimes });
-		}
-		if (item.description) {
-			body.createDiv({
-				cls: 'cl-card-big-desc',
-				text: item.description,
-				attr: { title: item.description },
-			});
-		}
-
-		if (schema.progressField) {
-			const progress = body.createDiv({ cls: 'cl-card-big-progress' });
-			if (item.progress.total) {
-				const bar = progress.createDiv({ cls: 'cl-progress' });
-				const fill = bar.createDiv({ cls: 'cl-progress-fill' });
-				fill.style.width = `${progressPercent(item)}%`;
-			}
-			progress.createDiv({
-				cls: 'cl-item-progress-label',
-				text: progressText(item),
-			});
-		}
-
-		const meta = body.createDiv({ cls: 'cl-card-big-meta' });
-		appendSourceChip(this.plugin, meta, item);
-		if (item.rating !== null) {
-			meta.createDiv({
-				cls: 'cl-item-rating',
-				text: '★'.repeat(item.rating) + '☆'.repeat(5 - item.rating),
-			});
-		}
-		meta.createDiv({
-			cls: `cl-status cl-status--${item.status}`,
-			text: statusLabel(item.status),
-		});
 	}
 }
 
