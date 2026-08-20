@@ -7,10 +7,11 @@ import {
 } from 'obsidian';
 import type ContentLogPlugin from '../main';
 import type { ContentItem } from '../types';
+import { isHttpUrl } from '../utils/guards';
 
 /** Источник, заданный внешней ссылкой ( http/https ). */
 export function isHttpSource(value: string): boolean {
-	return /^https?:\/\//i.test(value.trim());
+	return isHttpUrl(value);
 }
 
 /**
@@ -60,30 +61,20 @@ export async function openSource(
 	const { app } = plugin;
 	const file = findSourceFile(app, item);
 	if (file) {
-		// Настройка расширения сильнее всего: переопределяет даже
-		// форматы со встроенным просмотром.
 		const override =
 			plugin.settings.sourceOpenByExtension[
 				file.extension.toLowerCase()
-		];
-		if (override === 'tab') {
-			return openFileInTab(app, file);
-		}
-		if (override === 'system') {
-			return openInSystemApp(app, file);
-		}
-		switch (plugin.settings.sourceOpenMode) {
-			case 'tab':
-				return openFileInTab(app, file);
-			case 'system':
-				return openInSystemApp(app, file);
-			default:
-				if (obsidianViewType(app, file.extension)) {
-					return openFileInTab(app, file);
-				} else {
-					return openInSystemApp(app, file);
-				}
-		}
+			];
+		const configuredMode = override ?? plugin.settings.sourceOpenMode;
+		const effectiveMode: SourceExtensionMode =
+			configuredMode === 'auto'
+				? obsidianViewType(app, file.extension)
+					? 'tab'
+					: 'system'
+				: configuredMode;
+		return effectiveMode === 'tab'
+			? openFileInTab(app, file)
+			: openInSystemApp(app, file);
 	}
 	if (item.source && isHttpSource(item.source)) {
 		window.open(item.source.trim(), '_blank');

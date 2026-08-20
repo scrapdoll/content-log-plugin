@@ -1,6 +1,7 @@
 import { Modal, Notice, Setting, type ButtonComponent } from 'obsidian';
 import type ContentLogPlugin from '../main';
-import { formatHours, type HltbGame, searchHowLongToBeat } from '../core/hltb';
+import { type HltbGame, searchHowLongToBeat } from '../core/hltb';
+import { formatHours } from '../utils/format';
 
 /**
  * Модалка поиска игры на howlongtobeat.com: строка запроса и список

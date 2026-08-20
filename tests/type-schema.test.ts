@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	normalizeTypeSchema,
 	normalizeTypeSchemas,
+	validateTypeSchema,
 } from '../src/core/type-schema';
 
 const VALID_SCHEMA = {
@@ -49,6 +50,17 @@ describe('normalizeTypeSchema', () => {
 		});
 
 		expect(schema?.subtitleField).toBeNull();
+	});
+
+	it.each([
+		[{ ...VALID_SCHEMA, progressQuickSteps: [5, 5] }, 'не должны повторяться'],
+		[{ ...VALID_SCHEMA, progressField: 'прочитано страниц' }, 'Ключ прогресса'],
+		[{ ...VALID_SCHEMA, folder: '../..' }, 'Папка типа'],
+	])('returns an actionable validation error for the editor', (value, message) => {
+		const result = validateTypeSchema(value);
+
+		expect(result.schema).toBeNull();
+		expect(result.errors.join(' ')).toContain(message);
 	});
 
 	it('normalizes persisted lists and removes reserved or duplicate ids', () => {

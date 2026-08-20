@@ -1,4 +1,5 @@
 import type { EmbeddedBookCover, RawBookMetadata } from './types';
+import { imageExtension, isSafeRasterType } from './image';
 import { cleanList, cleanText, findIsbn } from './normalize';
 import {
 	archiveEntry,
@@ -190,24 +191,7 @@ function epubCover(
 	if (!coverBytes || coverBytes.length === 0) return undefined;
 	return {
 		bytes: coverBytes,
-		extension: imageExtension(coverItem.mediaType, coverItem.href),
+		extension: imageExtension(coverItem.mediaType),
 		mediaType: coverItem.mediaType,
 	};
-}
-
-function isSafeRasterType(mediaType: string): boolean {
-	return ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(
-		mediaType,
-	);
-}
-
-function imageExtension(mediaType: string, href: string): string {
-	const byType: Record<string, string> = {
-		'image/jpeg': 'jpg',
-		'image/png': 'png',
-		'image/webp': 'webp',
-		'image/gif': 'gif',
-		'image/avif': 'avif',
-	};
-	return byType[mediaType] ?? href.split('.').at(-1)?.toLowerCase() ?? 'bin';
 }

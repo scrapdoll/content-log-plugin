@@ -130,61 +130,57 @@ export async function writeRating(
 	new Notice(valid ? `Оценка: ${'★'.repeat(rating)}` : 'Оценка снята');
 }
 
-/** Записывает путь обложки в frontmatter карточки. */
+type TextFieldKey = 'cover' | 'source' | 'description';
+
+const TEXT_FIELD_NOTICES: Record<TextFieldKey, readonly [string, string]> = {
+	cover: ['Обложка обновлена', 'Обложка убрана'],
+	source: ['Источник обновлён', 'Источник убран'],
+	description: ['Описание обновлено', 'Описание убрано'],
+};
+
 export async function writeCover(
 	app: App,
 	item: ContentItem,
 	path: string | null,
 ): Promise<void> {
-	await frontmatterRepository(app).update(
-		item.file,
-		(fm: Record<string, unknown>) => {
-			if (path) {
-				fm['cover'] = path;
-			} else {
-				delete fm['cover'];
-			}
-		},
-	);
-	new Notice(path ? 'Обложка обновлена' : 'Обложка убрана');
+	await writeTextField(app, item, 'cover', path);
 }
 
-/** Записывает источник контента ( ссылка или текст «где взять» ). */
 export async function writeSource(
 	app: App,
 	item: ContentItem,
 	value: string | null,
 ): Promise<void> {
-	await frontmatterRepository(app).update(
-		item.file,
-		(fm: Record<string, unknown>) => {
-			if (value) {
-				fm['source'] = value;
-			} else {
-				delete fm['source'];
-			}
-		},
-	);
-	new Notice(value ? 'Источник обновлён' : 'Источник убран');
+	await writeTextField(app, item, 'source', value);
 }
 
-/** Записывает краткое описание карточки. */
 export async function writeDescription(
 	app: App,
 	item: ContentItem,
+	value: string | null,
+): Promise<void> {
+	await writeTextField(app, item, 'description', value);
+}
+
+/** Записывает текстовое поле либо удаляет ключ, сохраняя единый UX. */
+async function writeTextField(
+	app: App,
+	item: ContentItem,
+	key: TextFieldKey,
 	value: string | null,
 ): Promise<void> {
 	await frontmatterRepository(app).update(
 		item.file,
 		(fm: Record<string, unknown>) => {
 			if (value) {
-				fm['description'] = value;
+				fm[key] = value;
 			} else {
-				delete fm['description'];
+				delete fm[key];
 			}
 		},
 	);
-	new Notice(value ? 'Описание обновлено' : 'Описание убрано');
+	const notices = TEXT_FIELD_NOTICES[key];
+	new Notice(value ? notices[0] : notices[1]);
 }
 
 /**

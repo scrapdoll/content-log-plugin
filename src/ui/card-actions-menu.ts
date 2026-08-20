@@ -1,30 +1,23 @@
-import { Menu, Notice, setIcon, type TFile } from 'obsidian';
-import type ContentLogPlugin from '../main';
-import { UpdateProgressModal } from '../commands/progress';
+import { Menu, setIcon } from 'obsidian';
+import { openProgressModal } from '../commands/progress';
 import { RateContentModal } from '../commands/rating';
 import {
-	writeCover,
-	writeDescription,
 	writeHltb,
 	writeProgress,
 	writeProgressTotal,
-	writeSource,
 } from '../core/mutations';
-import { createContentNote } from '../core/notes';
 import { getTypeSchema } from '../core/registry';
-import { findSourceFile, isHttpSource, openSource } from '../core/source';
-import { SUPPORTED_BOOK_EXTENSIONS } from '../core/book-import/types';
-import { frontmatterRepository } from '../core/frontmatter';
+import type ContentLogPlugin from '../main';
 import type { ContentItem } from '../types';
 import { progressText } from '../utils/helpers';
-import { failLog } from './action-errors';
-import { CoverSuggestModal } from './cover-picker';
-import { CoverUrlModal } from './cover-url-modal';
+import { createCardActionRunner } from './action-errors';
+import {
+	addCoverActions,
+	addNoteActions,
+	addSourceActions,
+} from './card-secondary-actions';
 import { HltbSearchModal } from './hltb-search-modal';
 import { NumberInputModal } from './number-input-modal';
-import { BookImportModal } from './book-import-modal';
-import { SourceFileModal } from './source-file-modal';
-import { TextInputModal } from './text-input-modal';
 
 /** Меню «⋯» со всеми действиями над карточкой. */
 export function buildCardActionsMenu(
@@ -34,12 +27,13 @@ export function buildCardActionsMenu(
 	refresh: () => void,
 ): void {
 	const schema = getTypeSchema(item.type);
+	const run = createCardActionRunner(refresh);
 	const button = panel.createEl('button', {
 		cls: 'cl-chip-button cl-card-more',
 		attr: { 'aria-label': 'Действия' },
 	});
 	setIcon(button, 'more-horizontal');
-	button.addEventListener('click', (evt) => {
+	button.addEventListener('click', (event) => {
 		const menu = new Menu();
 
 		if (schema?.progressField) {
@@ -50,13 +44,15 @@ export function buildCardActionsMenu(
 						.setIcon('plus')
 						.setSection('progress')
 						.onClick(() =>
-							void writeProgress(
-								plugin.app,
-								item,
-								(item.progress.current ?? 0) + step,
-							)
-								.then(refresh)
-								.catch(failLog('progress update')),
+							run(
+								'progress update',
+								writeProgress(
+									plugin.app,
+									item,
+									(item.progress.current ?? 0) + step,
+								),
+								'Не удалось обновить прогресс',
+							),
 						),
 				);
 			}
@@ -65,9 +61,7 @@ export function buildCardActionsMenu(
 					.setTitle('Задать точный прогресс…')
 					.setIcon('pencil')
 					.setSection('progress')
-					.onClick(() => {
-						new UpdateProgressModal(plugin.app, item, refresh).open();
-					}),
+					.onClick(() => openProgressModal(plugin.app, item, refresh)),
 			);
 		}
 
@@ -84,13 +78,16 @@ export function buildCardActionsMenu(
 						new NumberInputModal(plugin.app, {
 							title: `${totalField?.label ?? 'Общее количество'} — ${item.title}`,
 							value: item.progress.total,
+							minimum: 0,
+							zeroIsEmpty: true,
 							placeholder: totalField?.placeholder ?? '',
 							hint: `Сейчас: ${progressText(item)}. Пустое поле убирает значение.`,
-							onSave: (value) => {
-								void writeProgressTotal(plugin.app, item, value)
-									.then(refresh)
-									.catch(failLog('progress total update'));
-							},
+							onSave: (value) =>
+								run(
+									'progress total update',
+									writeProgressTotal(plugin.app, item, value),
+									'Не удалось обновить общее количество',
+								),
 						}).open();
 					}),
 			);
@@ -101,9 +98,7 @@ export function buildCardActionsMenu(
 				.setTitle('Оценить…')
 				.setIcon('star')
 				.setSection('rating')
-				.onClick(() => {
-					new RateContentModal(plugin.app, item, refresh).open();
-				}),
+				.onClick(() => new RateContentModal(plugin.app, item, refresh).open()),
 		);
 
 		if (item.type === 'game') {
@@ -114,211 +109,19 @@ export function buildCardActionsMenu(
 					.setSection('hltb')
 					.onClick(() => {
 						new HltbSearchModal(plugin, item.title, (game) => {
-							void writeHltb(plugin.app, item, game)
-								.then(refresh)
-								.catch(failLog('hltb update'));
+							run(
+								'hltb update',
+								writeHltb(plugin.app, item, game),
+								'Не удалось записать данные HowLongToBeat',
+							);
 						}).open();
 					}),
 			);
 		}
 
-		addCoverActions(menu, plugin, item, refresh);
-		addSourceActions(menu, plugin, item, refresh);
-		addNoteActions(menu, plugin, item, refresh);
-		menu.showAtMouseEvent(evt);
+		addCoverActions(menu, plugin, item, run);
+		addSourceActions(menu, plugin, item, refresh, run);
+		addNoteActions(menu, plugin, item, run);
+		menu.showAtMouseEvent(event);
 	});
-}
-
-function addCoverActions(
-	menu: Menu,
-	plugin: ContentLogPlugin,
-	item: ContentItem,
-	refresh: () => void,
-): void {
-	menu.addItem((menuItem) =>
-		menuItem
-			.setTitle('Обложка из хранилища…')
-			.setIcon('image')
-			.setSection('cover')
-			.onClick(() => {
-				new CoverSuggestModal(plugin.app, (path) => {
-					void writeCover(plugin.app, item, path)
-						.then(refresh)
-						.catch(failLog('cover update'));
-				}).open();
-			}),
-	);
-	menu.addItem((menuItem) =>
-		menuItem
-			.setTitle('Обложка по ссылке…')
-			.setIcon('link')
-			.setSection('cover')
-			.onClick(() => {
-				new CoverUrlModal(plugin.app, (url) => {
-					void writeCover(plugin.app, item, url)
-						.then(refresh)
-						.catch(failLog('cover update'));
-				}).open();
-			}),
-	);
-	if (item.cover) {
-		menu.addItem((menuItem) =>
-			menuItem
-				.setTitle('Убрать обложку')
-				.setIcon('trash')
-				.setSection('cover')
-				.onClick(() => {
-					void writeCover(plugin.app, item, null)
-						.then(refresh)
-						.catch(failLog('cover update'));
-				}),
-		);
-	}
-}
-
-function addSourceActions(
-	menu: Menu,
-	plugin: ContentLogPlugin,
-	item: ContentItem,
-	refresh: () => void,
-): void {
-	const source = item.source;
-	const sourceFile = findSourceFile(plugin.app, item);
-	if (sourceFile || isHttpSource(source ?? '')) {
-		menu.addItem((menuItem) =>
-			menuItem
-				.setTitle('Открыть источник')
-				.setIcon('external-link')
-				.setSection('source')
-				.onClick(() => {
-					void openSource(plugin, item);
-				}),
-		);
-	}
-	if (
-		item.type === 'book' &&
-		sourceFile &&
-		SUPPORTED_BOOK_EXTENSIONS.has(sourceFile.extension.toLowerCase())
-	) {
-		menu.addItem((menuItem) =>
-			menuItem
-				.setTitle('Извлечь данные из источника…')
-				.setIcon('scan-text')
-				.setSection('source')
-				.onClick(() => {
-					void openBookImport(plugin, item, sourceFile, refresh);
-				}),
-		);
-	}
-	menu.addItem((menuItem) =>
-		menuItem
-			.setTitle('Источник из файла…')
-			.setIcon('file')
-			.setSection('source')
-			.onClick(() => {
-				new SourceFileModal(plugin.app, (path) => {
-					void writeSource(plugin.app, item, path)
-						.then(refresh)
-						.catch(failLog('source update'));
-				}).open();
-			}),
-	);
-	menu.addItem((menuItem) =>
-		menuItem
-			.setTitle(source ? 'Изменить источник…' : 'Указать источник…')
-			.setIcon('pencil')
-			.setSection('source')
-			.onClick(() => {
-				new TextInputModal(plugin.app, {
-					title: 'Источник',
-					value: source ?? '',
-					placeholder: 'Ссылка или текст',
-					onSave: (value) => {
-						void writeSource(plugin.app, item, value || null)
-							.then(refresh)
-							.catch(failLog('source update'));
-					},
-				}).open();
-			}),
-	);
-	if (source) {
-		menu.addItem((menuItem) =>
-			menuItem
-				.setTitle('Убрать источник')
-				.setIcon('trash')
-				.setSection('source')
-				.onClick(() => {
-					void writeSource(plugin.app, item, null)
-						.then(refresh)
-						.catch(failLog('source update'));
-				}),
-		);
-	}
-}
-
-async function openBookImport(
-	plugin: ContentLogPlugin,
-	item: ContentItem,
-	sourceFile: TFile,
-	refresh: () => void,
-): Promise<void> {
-	const notice = new Notice('Извлекаю данные книги…', 0);
-	try {
-		const { extractBookFile } = await import('../core/book-import');
-		const [extraction, current] = await Promise.all([
-			extractBookFile(plugin.app, sourceFile),
-			frontmatterRepository(plugin.app).read(item.file),
-		]);
-		notice.hide();
-		new BookImportModal(
-			plugin.app,
-			item,
-			extraction,
-			current ?? {},
-			refresh,
-		).open();
-	} catch (error) {
-		notice.hide();
-		console.error('content-log: book metadata extraction failed', error);
-		new Notice('Не удалось извлечь данные книги');
-	}
-}
-
-function addNoteActions(
-	menu: Menu,
-	plugin: ContentLogPlugin,
-	item: ContentItem,
-	refresh: () => void,
-): void {
-	menu.addItem((menuItem) =>
-		menuItem
-			.setTitle('Краткая заметка…')
-			.setIcon('text')
-			.setSection('notes')
-			.onClick(() => {
-				new TextInputModal(plugin.app, {
-					title: 'Краткая заметка',
-					value: item.description ?? '',
-					multiline: true,
-					placeholder: 'Пара слов о содержании',
-					onSave: (value) => {
-						void writeDescription(plugin.app, item, value || null)
-							.then(refresh)
-							.catch(failLog('description update'));
-					},
-				}).open();
-			}),
-	);
-	menu.addItem((menuItem) =>
-		menuItem
-			.setTitle('Новая заметка…')
-			.setIcon('file-plus')
-			.setSection('notes')
-			.onClick(() => {
-				void (async () => {
-					const note = await createContentNote(plugin.app, item);
-					if (note) await plugin.app.workspace.getLeaf('tab').openFile(note);
-				})().catch(failLog('note creation'));
-			}),
-	);
 }

@@ -2,6 +2,20 @@ import { parse } from 'yaml';
 
 export class App {}
 
+export class Modal {
+	constructor(_app: App) {}
+}
+
+export class PluginSettingTab {
+	containerEl = {};
+
+	constructor(_app: App, _plugin: unknown) {}
+}
+
+export class Setting {
+	constructor(_container: unknown) {}
+}
+
 export class FileSystemAdapter {}
 
 export class TFile {

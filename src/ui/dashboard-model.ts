@@ -1,16 +1,17 @@
-import { formatHours } from '../core/hltb';
+import { formatHours } from '../utils/format';
 import type { ContentItem, ContentStatus } from '../types';
 import { progressPercent } from '../utils/helpers';
 
 export type TypeFilter = string;
 export type StatusFilter = ContentStatus | 'All';
+export type RatingFilter = 'All' | 1 | 2 | 3 | 4 | 5;
 export type SortKey = 'Updated' | 'Title' | 'Progress';
 export type ViewMode = 'List' | 'Cards';
 
 export interface DashboardQuery {
 	type: TypeFilter;
 	status: StatusFilter;
-	minimumRating: string;
+	minimumRating: RatingFilter;
 	sort: SortKey;
 }
 
@@ -47,9 +48,10 @@ export function selectDashboardItems(
 		items = items.filter((item) => item.status === query.status);
 	}
 	if (query.minimumRating !== 'All') {
-		const minimum = Number(query.minimumRating);
+		const minimumRating = query.minimumRating;
 		items = items.filter(
-			(item) => item.rating !== null && item.rating >= minimum,
+			(item) =>
+				item.rating !== null && item.rating >= minimumRating,
 		);
 	}
 
@@ -66,6 +68,14 @@ export function selectDashboardItems(
 			break;
 	}
 	return items;
+}
+
+/** Сигнатура набора для пропуска лишней перерисовки dashboard. */
+export function dashboardItemsSignature(items: ContentItem[]): string {
+	return items
+		.map((item) => `${item.file.path}:${item.file.stat.mtime}`)
+		.sort()
+		.join('|');
 }
 
 export function completionMonths(

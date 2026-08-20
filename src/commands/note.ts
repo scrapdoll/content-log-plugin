@@ -1,6 +1,7 @@
 import { App, Modal, Setting } from 'obsidian';
 import { createContentNote } from '../core/notes';
 import type { ContentItem } from '../types';
+import { reportActionError } from '../ui/action-errors';
 
 /** Модалка создания заметки внутри папки Notes карточки контента. */
 export class AddNoteModal extends Modal {
@@ -43,9 +44,13 @@ export class AddNoteModal extends Modal {
 
 	private async create(): Promise<void> {
 		this.close();
-		const file = await createContentNote(this.app, this.item, this.noteTitle);
-		if (file) {
-			await this.app.workspace.getLeaf('tab').openFile(file);
+		try {
+			const file = await createContentNote(this.app, this.item, this.noteTitle);
+			if (file) {
+				await this.app.workspace.getLeaf('tab').openFile(file);
+			}
+		} catch (error) {
+			reportActionError('note creation', error, 'Не удалось создать заметку');
 		}
 	}
 }

@@ -1,4 +1,5 @@
 import { requestUrl, type RequestUrlParam, type RequestUrlResponse } from 'obsidian';
+import { errorMessage, finiteNumberOrNull } from '../utils/guards';
 
 /** Игра из результатов поиска HowLongToBeat. */
 export interface HltbGame {
@@ -127,15 +128,6 @@ export function hltbGameUrl(id: number): string {
 	return `${BASE_URL}/game/${id}`;
 }
 
-/** «46,5 ч» / «46 ч» из часов во frontmatter. */
-export function formatHours(hours: number | null): string {
-	if (hours === null || hours <= 0) return '—';
-	const value = Number.isInteger(hours)
-		? String(hours)
-		: hours.toFixed(1).replace('.', ',');
-	return `${value} ч`;
-}
-
 async function requestSecurity(referer: string): Promise<BleedSecurity> {
 	let response: RequestUrlResponse;
 	try {
@@ -193,10 +185,6 @@ function sendWithTimeout(params: RequestUrlParam): Promise<RequestUrlResponse> {
 	});
 }
 
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
-}
-
 function browserHeaders(referer: string): Record<string, string> {
 	return {
 		'User-Agent': USER_AGENT,
@@ -209,7 +197,7 @@ function browserHeaders(referer: string): Record<string, string> {
 function hltbGameFromApi(value: unknown): HltbGame | null {
 	if (typeof value !== 'object' || value === null) return null;
 	const game = value as HltbApiGame;
-	const id = numberOrNull(game.game_id);
+	const id = finiteNumberOrNull(game.game_id);
 	const name = typeof game.game_name === 'string' ? game.game_name : '';
 	if (id === null || !name) return null;
 	const image =
@@ -224,7 +212,7 @@ function hltbGameFromApi(value: unknown): HltbGame | null {
 			typeof game.profile_platform === 'string'
 				? game.profile_platform
 				: '',
-		year: numberOrNull(game.release_world),
+		year: finiteNumberOrNull(game.release_world),
 		mainHours: secondsToHours(game.comp_main),
 		extraHours: secondsToHours(game.comp_plus),
 		completeHours: secondsToHours(game.comp_100),
@@ -232,11 +220,7 @@ function hltbGameFromApi(value: unknown): HltbGame | null {
 }
 
 function secondsToHours(value: unknown): number | null {
-	const seconds = numberOrNull(value);
+	const seconds = finiteNumberOrNull(value);
 	if (seconds === null || seconds <= 0) return null;
 	return Math.round((seconds / 3600) * 10) / 10;
-}
-
-function numberOrNull(value: unknown): number | null {
-	return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }

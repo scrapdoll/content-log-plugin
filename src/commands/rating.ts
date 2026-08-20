@@ -1,6 +1,7 @@
 import { App, Modal, Setting } from 'obsidian';
 import { writeRating } from '../core/mutations';
 import type { ContentItem } from '../types';
+import { runCardAction } from '../ui/action-errors';
 
 /** Модалка оценки карточки: звёзды 1–5 и снятие оценки. */
 export class RateContentModal extends Modal {
@@ -46,12 +47,12 @@ export class RateContentModal extends Modal {
 		this.contentEl.empty();
 	}
 
-	private async apply(rating: number): Promise<void> {
-		try {
-			await writeRating(this.app, this.item, rating);
-			this.onSaved?.();
-		} catch (error) {
-			console.error('content-log: rating update failed', error);
-		}
+	private apply(rating: number): void {
+		runCardAction(
+			'rating update',
+			this.onSaved,
+			writeRating(this.app, this.item, rating),
+			'Не удалось обновить оценку',
+		);
 	}
 }

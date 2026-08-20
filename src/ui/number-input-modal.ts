@@ -6,6 +6,10 @@ export interface NumberInputParams {
 	placeholder?: string;
 	/** Пояснение над полем ( например, текущее значение ). */
 	hint?: string;
+	allowEmpty?: boolean;
+	minimum?: number;
+	zeroIsEmpty?: boolean;
+	quickValues?: ReadonlyArray<{ label: string; value: number }>;
 	onSave: (value: number | null) => void;
 }
 
@@ -44,12 +48,26 @@ export class NumberInputModal extends Modal {
 			this.params.value === null ? '' : String(this.params.value);
 		input.addEventListener('input', () => {
 			const num = Number(input.value);
-			this.current =
-				input.value !== '' && Number.isFinite(num) && num > 0
-					? num
-					: null;
+			const minimum = this.params.minimum ?? 0;
+			if (input.value !== '' && Number.isFinite(num) && num >= minimum) {
+				this.current = this.params.zeroIsEmpty && num === 0 ? null : num;
+			} else if (this.params.allowEmpty !== false) {
+				this.current = null;
+			}
 		});
 		input.focus();
+
+		if (this.params.quickValues?.length) {
+			const quick = new Setting(contentEl).setName('Быстро прибавить');
+			for (const option of this.params.quickValues) {
+				quick.addButton((button) =>
+					button.setButtonText(option.label).onClick(() => {
+						this.params.onSave(option.value);
+						this.close();
+					}),
+				);
+			}
+		}
 
 		new Setting(contentEl)
 			.addButton((button) =>

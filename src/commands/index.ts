@@ -3,7 +3,7 @@ import { getTypeSchema } from '../core/registry';
 import { getActiveContentItem } from '../utils/helpers';
 import { AddContentModal } from '../ui/add-content-modal';
 import { openDashboard } from '../ui/dashboard-view';
-import { UpdateProgressModal } from './progress';
+import { openProgressModal } from './progress';
 import { UpdateStatusModal } from './status';
 import { AddNoteModal } from './note';
 import { RateContentModal } from './rating';
@@ -29,7 +29,7 @@ export function registerCommands(plugin: ContentLogPlugin): void {
 		checkCallback: (checking) => {
 			const item = getActiveContentItem(plugin);
 			if (!item || !getTypeSchema(item.type)?.progressField) return false;
-			if (!checking) new UpdateProgressModal(plugin.app, item).open();
+			if (!checking) openProgressModal(plugin.app, item);
 			return true;
 		},
 	});

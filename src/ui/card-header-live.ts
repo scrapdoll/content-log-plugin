@@ -8,7 +8,7 @@ import { type EditorState, StateField } from '@codemirror/state';
 import type { Text } from '@codemirror/state';
 import { editorInfoField, TFile } from 'obsidian';
 import type ContentLogPlugin from '../main';
-import { contentItemFromFrontmatter } from '../core/index';
+import { contentItemFromFrontmatter } from '../core/content-item';
 import { parseFrontmatterText } from '../core/frontmatter';
 import type { ContentItem } from '../types';
 import { buildCardHeaderPanel } from './card-header';

@@ -1,4 +1,5 @@
 import type { FieldDef, TypeSchema } from '../types';
+import { isRecord } from '../utils/guards';
 
 const KEY_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
@@ -24,36 +25,90 @@ export function normalizeTypeSchemas(
  * целиком, чтобы индексатор никогда не работал с частично валидными полями.
  */
 export function normalizeTypeSchema(value: unknown): TypeSchema | null {
-	if (!isRecord(value)) return null;
+	return validateTypeSchema(value).schema;
+}
+
+export interface TypeSchemaValidationResult {
+	schema: TypeSchema | null;
+	errors: string[];
+}
+
+/** Та же валидация для UI: возвращает причину вместо молчаливого отказа. */
+export function validateTypeSchema(value: unknown): TypeSchemaValidationResult {
+	const errors: string[] = [];
+	if (!isRecord(value)) {
+		return { schema: null, errors: ['Некорректное описание типа'] };
+	}
 	const id = requiredKey(value['id']);
 	const label = requiredText(value['label']);
-	if (!id || !label || !Array.isArray(value['fields'])) return null;
+	if (!id) errors.push('Ключ типа: латиница, цифры, дефис или подчёркивание');
+	if (!label) errors.push('Укажите название типа');
+	if (!Array.isArray(value['fields'])) errors.push('Некорректный список полей');
+	if (errors.length > 0 || !id || !label || !Array.isArray(value['fields'])) {
+		return { schema: null, errors };
+	}
 
 	const fields: FieldDef[] = [];
 	const fieldKeys = new Set<string>();
 	for (const candidate of value['fields']) {
 		const field = normalizeField(candidate);
-		if (!field || fieldKeys.has(field.key)) return null;
+		if (!field) {
+			errors.push('У каждого поля должны быть корректные ключ, название и тип');
+			continue;
+		}
+		if (fieldKeys.has(field.key)) {
+			errors.push(`Дублирующийся ключ поля: ${field.key}`);
+			continue;
+		}
 		fieldKeys.add(field.key);
 		fields.push(field);
 	}
 
 	const progressField = optionalKey(value['progressField']);
 	const progressTotalField = optionalKey(value['progressTotalField']);
-	if (progressField === undefined || progressTotalField === undefined) return null;
+	if (progressField === undefined) {
+		errors.push('Ключ прогресса: латиница, цифры, дефис или подчёркивание');
+	}
+	if (progressTotalField === undefined) {
+		errors.push('Ключ общего количества: латиница, цифры, дефис или подчёркивание');
+	}
 	const progressUnit = optionalText(value['progressUnit']) ?? '';
-	if (progressField !== null && progressUnit === '') return null;
+	if (progressField !== null && progressField !== undefined && progressUnit === '') {
+		errors.push('Укажите единицу прогресса');
+	}
 
 	const quickSteps = value['progressQuickSteps'];
-	if (!Array.isArray(quickSteps)) return null;
-	const progressQuickSteps = [...new Set(quickSteps)].filter(
-		(step): step is number =>
-			typeof step === 'number' && Number.isFinite(step) && step > 0,
-	);
-	if (progressQuickSteps.length !== quickSteps.length) return null;
+	let progressQuickSteps: number[] = [];
+	if (!Array.isArray(quickSteps)) {
+		errors.push('Некорректный список быстрых кнопок');
+	} else {
+		progressQuickSteps = quickSteps.filter(
+			(step): step is number =>
+				typeof step === 'number' && Number.isFinite(step) && step > 0,
+		);
+		if (progressQuickSteps.length !== quickSteps.length) {
+			errors.push('Быстрые кнопки: положительные числа через запятую');
+		} else if (new Set(progressQuickSteps).size !== progressQuickSteps.length) {
+			errors.push('Быстрые кнопки не должны повторяться');
+		}
+	}
+
+	const folder = optionalText(value['folder']) || label;
+	if (!isSafeFolder(folder)) {
+		errors.push('Папка типа должна находиться внутри корневой папки');
+	}
+	if (
+		errors.length > 0 ||
+		progressField === undefined ||
+		progressTotalField === undefined
+	) {
+		return { schema: null, errors };
+	}
 
 	const subtitleCandidate = optionalKey(value['subtitleField']);
-	if (subtitleCandidate === undefined) return null;
+	if (subtitleCandidate === undefined) {
+		return { schema: null, errors: ['Некорректный ключ поля-подзаголовка'] };
+	}
 	const subtitleField = fields.some(
 		(field) => field.key === subtitleCandidate && field.kind === 'text',
 	)
@@ -61,16 +116,19 @@ export function normalizeTypeSchema(value: unknown): TypeSchema | null {
 		: null;
 
 	return {
-		id,
-		label,
-		icon: optionalText(value['icon']) || 'tag',
-		folder: optionalText(value['folder']) || label,
-		subtitleField,
-		fields,
-		progressField,
-		progressTotalField: progressField ? progressTotalField : null,
-		progressUnit: progressField ? progressUnit : '',
-		progressQuickSteps: progressField ? progressQuickSteps : [],
+		schema: {
+			id,
+			label,
+			icon: optionalText(value['icon']) || 'tag',
+			folder,
+			subtitleField,
+			fields,
+			progressField,
+			progressTotalField: progressField ? progressTotalField : null,
+			progressUnit: progressField ? progressUnit : '',
+			progressQuickSteps: progressField ? progressQuickSteps : [],
+		},
+		errors: [],
 	};
 }
 
@@ -104,6 +162,12 @@ function optionalText(value: unknown): string | null {
 	return value === undefined || value === null ? null : requiredText(value);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
+function isSafeFolder(folder: string): boolean {
+	if (folder.includes('\\') || folder.startsWith('/') || folder.endsWith('/')) {
+		return false;
+	}
+	if (/[\0:*?"<>|#^[\]]/.test(folder)) return false;
+	return folder
+		.split('/')
+		.every((segment) => Boolean(segment) && segment !== '.' && segment !== '..');
 }

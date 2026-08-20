@@ -1,6 +1,7 @@
 import { App, Modal } from 'obsidian';
 import { writeStatus } from '../core/mutations';
 import { STATUSES, type ContentItem } from '../types';
+import { runCardAction } from '../ui/action-errors';
 
 /** Модалка выбора статуса текущей карточки. */
 export class UpdateStatusModal extends Modal {
@@ -23,10 +24,11 @@ export class UpdateStatusModal extends Modal {
 			}
 			button.addEventListener('click', () => {
 				this.close();
-				void writeStatus(this.app, this.item, status.id).catch(
-					(error) => {
-						console.error('content-log: status update failed', error);
-					},
+				runCardAction(
+					'status update',
+					undefined,
+					writeStatus(this.app, this.item, status.id),
+					'Не удалось обновить статус',
 				);
 			});
 		}

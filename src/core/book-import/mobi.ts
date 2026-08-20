@@ -7,6 +7,7 @@ import {
 } from '@lingo-reader/mobi-parser';
 import { cleanList, findIsbn } from './normalize';
 import type { EmbeddedBookCover, RawBookMetadata } from './types';
+import { imageExtension, isSafeRasterType } from './image';
 
 const MAX_COVER_BYTES = 32 * 1024 * 1024;
 const MAX_TOC_ITEMS = 500;
@@ -84,20 +85,10 @@ async function readBlobCover(url: string): Promise<EmbeddedBookCover | undefined
 	const buffer = await response.arrayBuffer();
 	if (buffer.byteLength === 0 || buffer.byteLength > MAX_COVER_BYTES) return undefined;
 	const mediaType = response.headers.get('content-type')?.split(';')[0] ?? 'image/jpeg';
+	if (!isSafeRasterType(mediaType)) return undefined;
 	return {
 		bytes: new Uint8Array(buffer),
 		extension: imageExtension(mediaType),
 		mediaType,
 	};
-}
-
-function imageExtension(mediaType: string): string {
-	return (
-		{
-			'image/jpeg': 'jpg',
-			'image/png': 'png',
-			'image/webp': 'webp',
-			'image/gif': 'gif',
-		}[mediaType] ?? 'bin'
-	);
 }

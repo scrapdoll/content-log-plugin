@@ -1,4 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
+import { isRecord } from '../../utils/guards';
 
 export type XmlRecord = Record<string, unknown>;
 
@@ -111,8 +112,4 @@ function collectDescendants(
 		if (childKey === key) result.push(...records(entry));
 		collectDescendants(entry, key, result, depth + 1);
 	}
-}
-
-function isRecord(value: unknown): value is XmlRecord {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

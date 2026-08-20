@@ -1,5 +1,6 @@
 import { cleanList, cleanText, findIsbn } from './normalize';
 import type { EmbeddedBookCover, RawBookMetadata } from './types';
+import { imageExtension, isSafeRasterType } from './image';
 import {
 	asRecord,
 	attribute,
@@ -113,24 +114,6 @@ function fb2Cover(
 	} catch {
 		return undefined;
 	}
-}
-
-function isSafeRasterType(mediaType: string): boolean {
-	return ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(
-		mediaType,
-	);
-}
-
-function imageExtension(mediaType: string): string {
-	return (
-		{
-			'image/jpeg': 'jpg',
-			'image/png': 'png',
-			'image/webp': 'webp',
-			'image/gif': 'gif',
-			'image/avif': 'avif',
-		}[mediaType] ?? 'bin'
-	);
 }
 
 function isString(value: string | undefined): value is string {

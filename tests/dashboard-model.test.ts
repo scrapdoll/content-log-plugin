@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	completionMonths,
+	dashboardItemsSignature,
 	selectDashboardItems,
 } from '../src/ui/dashboard-model';
 import type { ContentItem } from '../src/types';
@@ -37,12 +38,23 @@ describe('dashboard model', () => {
 		const selected = selectDashboardItems(original, {
 			type: 'All',
 			status: 'All',
-			minimumRating: '4',
+			minimumRating: 4,
 			sort: 'Title',
 		});
 
 		expect(selected.map((value) => value.title)).toEqual(['Альфа']);
 		expect(original.map((value) => value.title)).toEqual(['Бета', 'Альфа']);
+	});
+
+	it('uses path and mtime as the stable redraw signature', () => {
+		const first = item('Один', { mtime: 1 });
+		const second = item('Два', { mtime: 2 });
+		first.file.path = 'Books/One.md';
+		second.file.path = 'Books/Two.md';
+
+		expect(dashboardItemsSignature([second, first])).toBe(
+			'Books/One.md:1|Books/Two.md:2',
+		);
 	});
 
 	it('aggregates completions once for the last twelve months', () => {

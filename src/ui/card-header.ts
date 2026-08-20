@@ -1,13 +1,17 @@
 import { Menu, setIcon, TFile } from 'obsidian';
 import type ContentLogPlugin from '../main';
-import { contentItemFromFrontmatter, parseContentItem } from '../core/index';
+import {
+	contentItemFromFrontmatter,
+	parseContentItem,
+} from '../core/content-item';
 import { frontmatterRepository } from '../core/frontmatter';
 import {
 	writeStatus,
 	writeHltb,
 } from '../core/mutations';
 import { resolveCoverSrc } from '../core/cover';
-import { formatHours, hltbGameUrl } from '../core/hltb';
+import { hltbGameUrl } from '../core/hltb';
+import { formatHours } from '../utils/format';
 import { getTypeSchema, isKnownType } from '../core/registry';
 import { RateContentModal } from '../commands/rating';
 import {
@@ -21,7 +25,7 @@ import {
 } from '../utils/helpers';
 import { HltbSearchModal } from './hltb-search-modal';
 import { appendSourceChip } from './source-chip';
-import { failLog } from './action-errors';
+import { createCardActionRunner } from './action-errors';
 import { buildCardActionsMenu } from './card-actions-menu';
 import { buildCardNotesSection } from './card-notes';
 
@@ -147,6 +151,7 @@ function buildStatusPill(
 	item: ContentItem,
 	refresh: () => void,
 ): void {
+	const run = createCardActionRunner(refresh);
 	const statusPill = row.createDiv({
 		cls: `cl-status cl-status--${item.status} cl-card-status`,
 		text: statusLabel(item.status),
@@ -159,9 +164,11 @@ function buildStatusPill(
 					.setTitle(status.label)
 					.setChecked(status.id === item.status)
 					.onClick(() =>
-						void writeStatus(plugin.app, item, status.id)
-							.then(refresh)
-							.catch(failLog('status update')),
+						run(
+							'status update',
+							writeStatus(plugin.app, item, status.id),
+							'Не удалось обновить статус',
+						),
 					),
 			);
 		}
@@ -208,6 +215,7 @@ function buildHltbDisplay(
 	item: ContentItem,
 	refresh: () => void,
 ): void {
+	const run = createCardActionRunner(refresh);
 	const hltb = item.hltb;
 	if (!hltb) {
 		if (item.type !== 'game') return;
@@ -219,9 +227,11 @@ function buildHltbDisplay(
 		button.createSpan({ text: 'Заполнить из howlongtobeat.com…' });
 		button.addEventListener('click', () => {
 			new HltbSearchModal(plugin, item.title, (game) => {
-				void writeHltb(plugin.app, item, game)
-					.then(refresh)
-					.catch(failLog('hltb update'));
+				run(
+					'hltb update',
+					writeHltb(plugin.app, item, game),
+					'Не удалось записать данные HowLongToBeat',
+				);
 			}).open();
 		});
 		return;

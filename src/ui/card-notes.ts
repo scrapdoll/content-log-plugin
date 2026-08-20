@@ -25,7 +25,7 @@ export function buildCardNotesSection(
 		void (async () => {
 			const note = await createContentNote(plugin.app, item);
 			if (note) await plugin.app.workspace.getLeaf('tab').openFile(note);
-		})().catch(failLog('note creation'));
+		})().catch(failLog('note creation', 'Не удалось создать заметку'));
 	});
 
 	const list = section.createDiv({ cls: 'cl-card-notes-list' });

@@ -1,5 +1,6 @@
 import { App, Modal, Notice, Setting } from 'obsidian';
 import type { FieldDef, FieldKind, TypeSchema } from '../types';
+import { validateTypeSchema } from '../core/type-schema';
 
 interface CustomTypeModalParams {
 	/** Редактируемая схема или null для нового типа. */
@@ -317,8 +318,13 @@ export class CustomTypeModal extends Modal {
 			progressUnit,
 			progressQuickSteps,
 		};
+		const validation = validateTypeSchema(schema);
+		if (!validation.schema) {
+			new Notice(validation.errors[0] ?? 'Некорректные настройки типа');
+			return;
+		}
 
 		this.close();
-		await this.params.onSave(schema);
+		await this.params.onSave(validation.schema);
 	}
 }

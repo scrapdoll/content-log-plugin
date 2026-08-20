@@ -4,6 +4,7 @@ import {
 	type App,
 	type TFile,
 } from 'obsidian';
+import { isRecord } from '../utils/guards';
 
 export type Frontmatter = Record<string, unknown>;
 export type FrontmatterMutation = (frontmatter: Frontmatter) => void;
@@ -48,8 +49,4 @@ export function parseFrontmatterText(text: string): Frontmatter | null {
 	} catch {
 		return null;
 	}
-}
-
-function isRecord(value: unknown): value is Frontmatter {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

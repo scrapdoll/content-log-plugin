@@ -1,4 +1,11 @@
-import { App, Modal, Notice, Setting, setIcon } from 'obsidian';
+import {
+	App,
+	Modal,
+	Notice,
+	Setting,
+	setIcon,
+	type TextComponent,
+} from 'obsidian';
 import type ContentLogPlugin from '../main';
 import { createContentItem } from '../core/scaffold';
 import { getAllTypeSchemas, getTypeSchema } from '../core/registry';
@@ -24,6 +31,8 @@ export class AddContentModal extends Modal {
 	private status: ContentStatus = 'in-progress';
 	private coverPath: string | null = null;
 	private duplicateConfirmed = false;
+	private sourceInput: TextComponent | null = null;
+	private coverSettingHost: HTMLElement | null = null;
 
 	constructor(app: App, private plugin: ContentLogPlugin) {
 		super(app);
@@ -40,6 +49,8 @@ export class AddContentModal extends Modal {
 	private render(): void {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.sourceInput = null;
+		this.coverSettingHost = null;
 		contentEl.addClass('content-log-modal');
 		if (this.selected === null) {
 			this.renderTypePicker();
@@ -102,6 +113,7 @@ export class AddContentModal extends Modal {
 			.setName('Источник')
 			.setDesc('Где взять: файл, ссылка или название');
 		sourceSetting.addText((text) => {
+			this.sourceInput = text;
 			text.setPlaceholder('Файл, ссылка или текст')
 				.setValue(this.values['source'] ?? '')
 				.onChange((value) => {
@@ -112,7 +124,7 @@ export class AddContentModal extends Modal {
 			button.setButtonText('Файл').onClick(() => {
 				new SourceFileModal(this.app, (path) => {
 					this.values['source'] = path;
-					this.render();
+					this.sourceInput?.setValue(path);
 				}).open();
 			}),
 		);
@@ -127,36 +139,8 @@ export class AddContentModal extends Modal {
 			},
 		);
 
-		const coverSetting = new Setting(this.contentEl).setName(
-			'Обложка (необязательно)',
-		);
-		if (this.coverPath) {
-			coverSetting.setDesc(this.coverPath);
-		}
-		coverSetting.addButton((button) =>
-			button.setButtonText('Файл').onClick(() => {
-				new CoverSuggestModal(this.app, (path) => {
-					this.coverPath = path;
-					this.render();
-				}).open();
-			}),
-		);
-		coverSetting.addButton((button) =>
-			button.setButtonText('Ссылка').onClick(() => {
-				new CoverUrlModal(this.app, (url) => {
-					this.coverPath = url;
-					this.render();
-				}).open();
-			}),
-		);
-		if (this.coverPath) {
-			coverSetting.addButton((button) =>
-				button.setButtonText('Убрать').onClick(() => {
-					this.coverPath = null;
-					this.render();
-				}),
-			);
-		}
+		this.coverSettingHost = this.contentEl.createDiv();
+		this.renderCoverSetting();
 
 		new Setting(this.contentEl)
 			.addButton((button) =>
@@ -168,6 +152,40 @@ export class AddContentModal extends Modal {
 					.setCta()
 					.onClick(() => void this.submit()),
 			);
+	}
+
+	private renderCoverSetting(): void {
+		const host = this.coverSettingHost;
+		if (!host) return;
+		host.empty();
+		const coverSetting = new Setting(host).setName('Обложка (необязательно)');
+		if (this.coverPath) {
+			coverSetting.setDesc(this.coverPath);
+		}
+		coverSetting.addButton((button) =>
+			button.setButtonText('Файл').onClick(() => {
+				new CoverSuggestModal(this.app, (path) => {
+					this.coverPath = path;
+					this.renderCoverSetting();
+				}).open();
+			}),
+		);
+		coverSetting.addButton((button) =>
+			button.setButtonText('Ссылка').onClick(() => {
+				new CoverUrlModal(this.app, (url) => {
+					this.coverPath = url;
+					this.renderCoverSetting();
+				}).open();
+			}),
+		);
+		if (this.coverPath) {
+			coverSetting.addButton((button) =>
+				button.setButtonText('Убрать').onClick(() => {
+					this.coverPath = null;
+					this.renderCoverSetting();
+				}),
+			);
+		}
 	}
 
 	/** Ищет карточку того же типа с совпадающим названием ( без учёта регистра ). */
@@ -227,22 +245,22 @@ export class AddContentModal extends Modal {
 			}
 		}
 
-			this.close();
-			try {
-				const file = await createContentItem(
-					this.app,
-					this.plugin.settings.rootFolder,
-					{
-						type,
-						title,
-						status: this.status,
-						fields,
-						cover: this.coverPath,
-						source: (this.values['source'] ?? '').trim() || null,
-						description:
-							(this.values['description'] ?? '').trim() || null,
-					},
-				);
+		this.close();
+		try {
+			const file = await createContentItem(
+				this.app,
+				this.plugin.settings.rootFolder,
+				{
+					type,
+					title,
+					status: this.status,
+					fields,
+					cover: this.coverPath,
+					source: (this.values['source'] ?? '').trim() || null,
+					description:
+						(this.values['description'] ?? '').trim() || null,
+				},
+			);
 			if (file) {
 				await this.app.workspace.getLeaf('tab').openFile(file);
 			}

@@ -2,11 +2,9 @@ import { Plugin } from 'obsidian';
 import {
 	ContentLogSettingTab,
 	ContentLogSettings,
-	DEFAULT_SETTINGS,
+	normalizeSettings,
 } from './settings';
 import { rebuildTypeRegistry } from './core/registry';
-import { normalizeTypeSchemas } from './core/type-schema';
-import { BUILTIN_TYPES } from './types';
 import { ContentIndex } from './core/index';
 import { registerCommands } from './commands';
 import {
@@ -42,23 +40,7 @@ export default class ContentLogPlugin extends Plugin {
 	}
 
 	async loadSettings(): Promise<void> {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<ContentLogSettings>,
-		);
-		this.settings.customTypes = normalizeTypeSchemas(
-			this.settings.customTypes,
-			BUILTIN_TYPES.map((schema) => schema.id),
-		);
-		this.settings.sourceOpenByExtension =
-			typeof this.settings.sourceOpenByExtension === 'object' &&
-			this.settings.sourceOpenByExtension !== null
-				? { ...this.settings.sourceOpenByExtension }
-				: {};
-		const mode = this.settings.sourceOpenMode;
-		this.settings.sourceOpenMode =
-			mode === 'tab' || mode === 'system' ? mode : 'auto';
+		this.settings = normalizeSettings(await this.loadData());
 	}
 
 	async saveSettings(): Promise<void> {

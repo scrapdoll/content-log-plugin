@@ -2,6 +2,7 @@ import {
 	type ContentStatus,
 	toStatus,
 } from '../types';
+import { finiteNumberOrNull } from '../utils/guards';
 
 type Frontmatter = Record<string, unknown>;
 
@@ -63,8 +64,4 @@ export function applyStatusChange(
 			delete fm['finished'];
 			break;
 	}
-}
-
-function finiteNumberOrNull(value: unknown): number | null {
-	return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }

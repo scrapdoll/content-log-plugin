@@ -7,6 +7,9 @@ import {
 	type SourceOpenMode,
 } from './core/source';
 import type { TypeSchema } from './types';
+import { BUILTIN_TYPES } from './types';
+import { normalizeTypeSchemas } from './core/type-schema';
+import { isRecord } from './utils/guards';
 import { CustomTypeModal } from './ui/custom-type-modal';
 
 export interface ContentLogSettings {
@@ -26,6 +29,36 @@ export const DEFAULT_SETTINGS: ContentLogSettings = {
 	sourceOpenByExtension: {},
 	customTypes: [],
 };
+
+export function normalizeSettings(value: unknown): ContentLogSettings {
+	const raw = isRecord(value) ? value : {};
+	const mode = raw['sourceOpenMode'];
+	const sourceOpenMode: SourceOpenMode =
+		mode === 'tab' || mode === 'system' ? mode : 'auto';
+	const sourceOpenByExtension: Record<string, SourceExtensionMode> = {};
+	const extensions = raw['sourceOpenByExtension'];
+	if (isRecord(extensions)) {
+		for (const extension of SOURCE_EXTENSIONS) {
+			const extensionMode = extensions[extension];
+			if (extensionMode === 'tab' || extensionMode === 'system') {
+				sourceOpenByExtension[extension] = extensionMode;
+			}
+		}
+	}
+	const rootFolder =
+		typeof raw['rootFolder'] === 'string' && raw['rootFolder'].trim()
+			? raw['rootFolder'].trim()
+			: DEFAULT_SETTINGS.rootFolder;
+	return {
+		rootFolder,
+		sourceOpenMode,
+		sourceOpenByExtension,
+		customTypes: normalizeTypeSchemas(
+			raw['customTypes'],
+			BUILTIN_TYPES.map((schema) => schema.id),
+		),
+	};
+}
 
 export class ContentLogSettingTab extends PluginSettingTab {
 	constructor(app: App, private plugin: ContentLogPlugin) {

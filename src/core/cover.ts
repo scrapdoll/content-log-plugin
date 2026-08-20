@@ -1,5 +1,6 @@
 import { App, TFile } from 'obsidian';
 import type { ContentItem } from '../types';
+import { isHttpUrl } from '../utils/guards';
 
 const IMAGE_EXTENSIONS = new Set([
 	'png',
@@ -18,7 +19,7 @@ export function isImageFile(file: TFile): boolean {
 
 /** Обложка, заданная внешней ссылкой ( http/https ), а не файлом vault. */
 export function isRemoteCover(value: string): boolean {
-	return /^https?:\/\//i.test(value.trim());
+	return isHttpUrl(value);
 }
 
 /** Готовый src для тега img: внешняя ссылка как есть либо ресурс vault. */
