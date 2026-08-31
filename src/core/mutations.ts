@@ -1,10 +1,12 @@
 import { App, Notice } from 'obsidian';
 import { getTypeSchema } from './registry';
 import { type HltbGame } from './hltb';
+import type { MediaMetadataDetails } from './metadata-provider';
 import {
 	type ContentItem,
 	type ContentStatus,
 	statusLabel,
+	toStatus,
 } from '../types';
 import { todayISO } from '../utils/helpers';
 import {
@@ -12,6 +14,53 @@ import {
 	applyStatusChange,
 } from './frontmatter-transitions';
 import { frontmatterRepository } from './frontmatter';
+
+export interface ContentCardEditInput {
+	title: string;
+	status: ContentStatus;
+	fields: Record<string, string | number>;
+	cover: string | null;
+	source: string | null;
+	description: string | null;
+}
+
+/** Обновляет редактируемые поля карточки, сохраняя неизвестный frontmatter. */
+export async function writeContentCard(
+	app: App,
+	item: ContentItem,
+	input: ContentCardEditInput,
+): Promise<void> {
+	const schema = getTypeSchema(item.type);
+	if (!schema) throw new Error(`Unknown content type: ${item.type}`);
+	const title = input.title.trim();
+	if (!title) throw new Error('Content title is required');
+
+	await frontmatterRepository(app).update(item.file, (fm) => {
+		fm['title'] = title;
+		if (toStatus(fm['status']) !== input.status) {
+			applyStatusChange(fm, input.status, todayISO());
+		}
+		for (const field of schema.fields) {
+			const value = input.fields[field.key];
+			if (value === undefined || value === '') delete fm[field.key];
+			else fm[field.key] = value;
+		}
+		writeOptionalText(fm, 'cover', input.cover);
+		writeOptionalText(fm, 'source', input.source);
+		writeOptionalText(fm, 'description', input.description);
+	});
+	new Notice('Карточка обновлена');
+}
+
+function writeOptionalText(
+	fm: Record<string, unknown>,
+	key: string,
+	value: string | null,
+): void {
+	const normalized = value?.trim() ?? '';
+	if (normalized) fm[key] = normalized;
+	else delete fm[key];
+}
 
 /**
  * Записывает прогресс в frontmatter карточки. При выходе на полную
@@ -204,6 +253,78 @@ export async function writeHltb(
 		},
 	);
 	new Notice('Данные howlongtobeat.com записаны');
+}
+
+/** Записывает нормализованные данные выбранного каталога без provider-specific ветвлений. */
+export async function writeMediaMetadata(
+	app: App,
+	item: ContentItem,
+	details: MediaMetadataDetails,
+): Promise<void> {
+	await frontmatterRepository(app).update(
+		item.file,
+		(fm: Record<string, unknown>) => {
+			fm['metadata-provider'] = details.providerId;
+			fm['metadata-id'] = details.itemId;
+			fm['metadata-url'] = details.providerUrl;
+			writeMetadata(fm, 'original-title', details.originalTitle);
+			writeMetadata(fm, 'year', details.year);
+			writeMetadata(fm, 'genres', details.genres);
+			writeMetadata(fm, 'metadata-rating', details.rating);
+			delete fm['tmdb-id'];
+			delete fm['tmdb-type'];
+			delete fm['tmdb-url'];
+			delete fm['tmdb-rating'];
+
+			if (item.type === 'movie' || item.type === 'anime') {
+				writeMetadata(fm, 'director', details.director);
+				writeMetadata(fm, 'runtime', details.runtimeMinutes);
+			}
+			if (item.type === 'series' || item.type === 'anime') {
+				writeMetadata(fm, 'creator', details.creator);
+				writeMetadata(fm, 'seasons-total', details.seasonsTotal);
+				writeMetadata(fm, 'episodes-total', details.episodesTotal);
+				const watched = fm['episodes-watched'];
+				if (
+					details.episodesTotal !== null &&
+					typeof watched === 'number' &&
+					Number.isFinite(watched) &&
+					watched > details.episodesTotal
+				) {
+					applyProgressChange(
+						fm,
+						{
+							progressField: 'episodes-watched',
+							progressTotalField: 'episodes-total',
+						},
+						details.episodesTotal,
+						todayISO(),
+					);
+				}
+			}
+			if (item.type === 'anime') {
+				writeMetadata(fm, 'studio', details.studio);
+			}
+
+			if (!fm['cover'] && details.posterUrl) fm['cover'] = details.posterUrl;
+			if (!fm['description'] && details.overview) {
+				fm['description'] = details.overview;
+			}
+		},
+	);
+	new Notice('Метаданные записаны');
+}
+
+function writeMetadata(
+	fm: Record<string, unknown>,
+	key: string,
+	value: string | number | null,
+): void {
+	if (value === null || value === '') {
+		delete fm[key];
+	} else {
+		fm[key] = value;
+	}
 }
 
 function writeHours(

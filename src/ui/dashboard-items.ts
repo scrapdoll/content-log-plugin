@@ -6,6 +6,7 @@ import { statusLabel, type ContentItem } from '../types';
 import { progressPercent, progressText } from '../utils/helpers';
 import { hltbTimesText } from './dashboard-model';
 import { appendSourceChip } from './source-chip';
+import { buildCardActionsMenu } from './card-actions-menu';
 
 export function renderDashboardItemRow(
 	plugin: ContentLogPlugin,
@@ -47,6 +48,7 @@ export function renderDashboardItemRow(
 	if (schema.progressField) renderProgress(row, 'cl-item-progress', item);
 	renderRating(row, item);
 	renderStatus(row, item);
+	buildCardActionsMenu(plugin, row, item, () => undefined);
 }
 
 export function renderDashboardItemCard(
@@ -93,6 +95,7 @@ export function renderDashboardItemCard(
 	appendSourceChip(plugin, meta, item);
 	renderRating(meta, item);
 	renderStatus(meta, item);
+	buildCardActionsMenu(plugin, meta, item, () => undefined);
 }
 
 function itemSubtitle(item: ContentItem, field: string | null): string {

@@ -8,6 +8,7 @@ import { UpdateStatusModal } from './status';
 import { AddNoteModal } from './note';
 import { RateContentModal } from './rating';
 import { registerHltbCommand } from './hltb';
+import { registerMetadataCommand } from './metadata';
 import { exportDashboardMarkdown } from './export';
 
 export function registerCommands(plugin: ContentLogPlugin): void {
@@ -68,6 +69,7 @@ export function registerCommands(plugin: ContentLogPlugin): void {
 	});
 
 	registerHltbCommand(plugin);
+	registerMetadataCommand(plugin);
 
 	plugin.addCommand({
 		id: 'export-dashboard',

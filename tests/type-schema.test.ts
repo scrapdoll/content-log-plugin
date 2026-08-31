@@ -4,6 +4,7 @@ import {
 	normalizeTypeSchemas,
 	validateTypeSchema,
 } from '../src/core/type-schema';
+import { BUILTIN_TYPES } from '../src/types';
 
 const VALID_SCHEMA = {
 	id: 'podcast',
@@ -19,6 +20,18 @@ const VALID_SCHEMA = {
 };
 
 describe('normalizeTypeSchema', () => {
+	it('provides built-in series and anime schemas with episode progress', () => {
+		for (const id of ['series', 'anime']) {
+			const schema = BUILTIN_TYPES.find((candidate) => candidate.id === id);
+			expect(schema).toMatchObject({
+				id,
+				progressField: 'episodes-watched',
+				progressTotalField: 'episodes-total',
+				progressQuickSteps: [1, 5],
+			});
+		}
+	});
+
 	it('returns a detached normalized schema', () => {
 		const schema = normalizeTypeSchema(VALID_SCHEMA);
 

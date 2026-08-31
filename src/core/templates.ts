@@ -1,6 +1,8 @@
 const BUILTIN_CARD_TEMPLATES: Record<string, string> = {
 	book: '# {{title}}\n\n## Впечатления\n\n## Цитаты\n',
 	movie: '# {{title}}\n\n## Впечатления\n\n## Заметки\n',
+	series: '# {{title}}\n\n## Впечатления\n\n## Заметки\n',
+	anime: '# {{title}}\n\n## Впечатления\n\n## Заметки\n',
 	game: '# {{title}}\n\n## Впечатления\n\n## Заметки\n',
 };
 

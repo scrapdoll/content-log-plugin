@@ -1,7 +1,7 @@
 import type { TFile } from 'obsidian';
 
 /**
- * Идентификатор типа контента: встроенный ('book' | 'movie' | 'game')
+ * Идентификатор типа контента: встроенный (book, movie, series, anime, game)
  * или пользовательский из настроек.
  */
 export type ContentTypeId = string;
@@ -122,11 +122,66 @@ export const BUILTIN_TYPES: TypeSchema[] = [
 				kind: 'number',
 				placeholder: '2014',
 			},
+			{
+				key: 'runtime',
+				label: 'Хронометраж, мин.',
+				kind: 'number',
+				placeholder: '169',
+			},
+			{ key: 'genres', label: 'Жанры', kind: 'text' },
+			{ key: 'original-title', label: 'Оригинальное название', kind: 'text' },
+			{ key: 'metadata-rating', label: 'Рейтинг источника', kind: 'number' },
+			{ key: 'metadata-id', label: 'ID источника', kind: 'text' },
 		],
 		progressField: null,
 		progressTotalField: null,
 		progressUnit: '',
 		progressQuickSteps: [],
+	},
+	{
+		id: 'series',
+		label: 'Сериал',
+		icon: 'tv',
+		folder: 'Series',
+		subtitleField: 'creator',
+		fields: [
+			{ key: 'creator', label: 'Создатель', kind: 'text' },
+			{ key: 'year', label: 'Год', kind: 'number', placeholder: '2024' },
+			{ key: 'seasons-total', label: 'Сезонов', kind: 'number' },
+			{ key: 'episodes-total', label: 'Эпизодов', kind: 'number' },
+			{ key: 'genres', label: 'Жанры', kind: 'text' },
+			{ key: 'original-title', label: 'Оригинальное название', kind: 'text' },
+			{ key: 'metadata-rating', label: 'Рейтинг источника', kind: 'number' },
+			{ key: 'metadata-id', label: 'ID источника', kind: 'text' },
+		],
+		progressField: 'episodes-watched',
+		progressTotalField: 'episodes-total',
+		progressUnit: 'эп.',
+		progressQuickSteps: [1, 5],
+	},
+	{
+		id: 'anime',
+		label: 'Аниме',
+		icon: 'sparkles',
+		folder: 'Anime',
+		subtitleField: 'studio',
+		fields: [
+			{ key: 'studio', label: 'Студия', kind: 'text' },
+			{ key: 'director', label: 'Режиссёр', kind: 'text' },
+			{ key: 'creator', label: 'Создатель', kind: 'text' },
+			{ key: 'year', label: 'Год', kind: 'number', placeholder: '2024' },
+			{ key: 'seasons-total', label: 'Сезонов', kind: 'number' },
+			{ key: 'episodes-total', label: 'Эпизодов', kind: 'number' },
+			{ key: 'runtime', label: 'Хронометраж, мин.', kind: 'number' },
+			{ key: 'genres', label: 'Жанры', kind: 'text' },
+			{ key: 'original-title', label: 'Оригинальное название', kind: 'text' },
+			{ key: 'metadata-rating', label: 'Рейтинг источника', kind: 'number' },
+			{ key: 'metadata-id', label: 'ID источника', kind: 'text' },
+		],
+		progressField: 'episodes-watched',
+		progressTotalField: 'episodes-total',
+		progressUnit: 'эп.',
+		progressQuickSteps: [1, 5],
 	},
 	{
 		id: 'game',

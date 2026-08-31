@@ -1,4 +1,9 @@
-import { App, debounce, PluginSettingTab, Setting } from 'obsidian';
+import {
+	App,
+	debounce,
+	PluginSettingTab,
+	Setting,
+} from 'obsidian';
 import type ContentLogPlugin from './main';
 import { getAllTypeSchemas, rebuildTypeRegistry } from './core/registry';
 import {
@@ -11,6 +16,11 @@ import { BUILTIN_TYPES } from './types';
 import { normalizeTypeSchemas } from './core/type-schema';
 import { isRecord } from './utils/guards';
 import { CustomTypeModal } from './ui/custom-type-modal';
+import type {
+	MediaMetadataKind,
+	MetadataProviderSettings,
+} from './core/metadata-provider';
+import { renderProviderSettings } from './settings/provider-settings';
 
 export interface ContentLogSettings {
 	/** Корневая папка контента в vault, например «Content Log». */
@@ -21,6 +31,8 @@ export interface ContentLogSettings {
 	sourceOpenByExtension: Record<string, SourceExtensionMode>;
 	/** Пользовательские типы контента. */
 	customTypes: TypeSchema[];
+	/** Выбранные реализации и ссылки на секреты внешних каталогов. */
+	metadataProviders: MetadataProviderSettings;
 }
 
 export const DEFAULT_SETTINGS: ContentLogSettings = {
@@ -28,6 +40,7 @@ export const DEFAULT_SETTINGS: ContentLogSettings = {
 	sourceOpenMode: 'auto',
 	sourceOpenByExtension: {},
 	customTypes: [],
+	metadataProviders: { selectedByKind: {}, secretNames: {} },
 };
 
 export function normalizeSettings(value: unknown): ContentLogSettings {
@@ -57,6 +70,7 @@ export function normalizeSettings(value: unknown): ContentLogSettings {
 			raw['customTypes'],
 			BUILTIN_TYPES.map((schema) => schema.id),
 		),
+		metadataProviders: normalizeMetadataProviderSettings(raw),
 	};
 }
 
@@ -66,6 +80,10 @@ export class ContentLogSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
+		this.renderSettings();
+	}
+
+	private renderSettings(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
@@ -136,6 +154,21 @@ export class ContentLogSettingTab extends PluginSettingTab {
 				});
 		}
 
+		const providers = containerEl.createEl('details', {
+			cls: 'cl-settings-panel',
+		});
+		providers.createEl('summary', {
+			text: 'Провайдеры',
+			attr: {
+				'aria-label': 'Показать или скрыть настройки провайдеров',
+			},
+		});
+		renderProviderSettings(
+			this.app,
+			this.plugin,
+			providers.createDiv({ cls: 'cl-settings-panel-content' }),
+		);
+
 		new Setting(containerEl)
 			.setName('Кастомные типы контента')
 			.setDesc(
@@ -204,6 +237,38 @@ export class ContentLogSettingTab extends PluginSettingTab {
 		await this.plugin.saveSettings();
 		rebuildTypeRegistry(this.plugin.settings.customTypes);
 		this.plugin.index.rebuild();
-		this.display();
+		this.renderSettings();
 	}
+}
+
+const METADATA_KINDS: MediaMetadataKind[] = ['movie', 'series', 'anime'];
+
+function normalizeMetadataProviderSettings(
+	rawSettings: Record<string, unknown>,
+): MetadataProviderSettings {
+	const raw = isRecord(rawSettings['metadataProviders'])
+		? rawSettings['metadataProviders']
+		: {};
+	const selectedByKind: MetadataProviderSettings['selectedByKind'] = {};
+	const selected = isRecord(raw['selectedByKind']) ? raw['selectedByKind'] : {};
+	for (const kind of METADATA_KINDS) {
+		const id = selected[kind];
+		if (typeof id === 'string' && id.trim()) selectedByKind[kind] = id.trim();
+	}
+	const secretNames: Record<string, string> = {};
+	const secrets = isRecord(raw['secretNames']) ? raw['secretNames'] : {};
+	for (const [providerId, value] of Object.entries(secrets)) {
+		if (typeof value === 'string' && value.trim()) {
+			secretNames[providerId] = value.trim();
+		}
+	}
+	const legacyTmdbSecret = rawSettings['tmdbSecretName'];
+	if (
+		!secretNames['tmdb'] &&
+		typeof legacyTmdbSecret === 'string' &&
+		legacyTmdbSecret.trim()
+	) {
+		secretNames['tmdb'] = legacyTmdbSecret.trim();
+	}
+	return { selectedByKind, secretNames };
 }

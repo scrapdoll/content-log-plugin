@@ -14,12 +14,25 @@ import {
 } from './ui/dashboard-view';
 import { registerCardHeader } from './ui/card-header';
 import { registerLivePreviewHeader } from './ui/card-header-live';
+import { MetadataProviderRegistry } from './core/metadata-provider-registry';
+import { MetadataService } from './core/metadata-service';
+import { TmdbMetadataProvider } from './integrations/tmdb/tmdb-provider';
+import { TMDB_ATTRIBUTION } from './ui/tmdb-attribution';
 
 export default class ContentLogPlugin extends Plugin {
 	settings!: ContentLogSettings;
 	index!: ContentIndex;
+	metadataProviders!: MetadataProviderRegistry;
+	metadataService!: MetadataService;
 
 	async onload(): Promise<void> {
+		this.metadataProviders = new MetadataProviderRegistry([
+			new TmdbMetadataProvider(TMDB_ATTRIBUTION),
+		]);
+		this.metadataService = new MetadataService(
+			this.metadataProviders,
+			(secretName) => this.app.secretStorage.getSecret(secretName),
+		);
 		await this.loadSettings();
 		rebuildTypeRegistry(this.settings.customTypes);
 

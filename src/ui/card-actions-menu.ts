@@ -3,6 +3,7 @@ import { openProgressModal } from '../commands/progress';
 import { RateContentModal } from '../commands/rating';
 import {
 	writeHltb,
+	writeMediaMetadata,
 	writeProgress,
 	writeProgressTotal,
 } from '../core/mutations';
@@ -18,6 +19,8 @@ import {
 } from './card-secondary-actions';
 import { HltbSearchModal } from './hltb-search-modal';
 import { NumberInputModal } from './number-input-modal';
+import { metadataProviderLabel, openMetadataLookup } from './metadata-lookup';
+import { EditContentModal } from './add-content-modal';
 
 /** Меню «⋯» со всеми действиями над карточкой. */
 export function buildCardActionsMenu(
@@ -34,7 +37,19 @@ export function buildCardActionsMenu(
 	});
 	setIcon(button, 'more-horizontal');
 	button.addEventListener('click', (event) => {
+		event.preventDefault();
+		event.stopPropagation();
 		const menu = new Menu();
+
+		menu.addItem((menuItem) =>
+			menuItem
+				.setTitle('Редактировать карточку…')
+				.setIcon('square-pen')
+				.setSection('edit')
+				.onClick(() =>
+					new EditContentModal(plugin.app, plugin, item).open(),
+				),
+		);
 
 		if (schema?.progressField) {
 			for (const step of schema.progressQuickSteps) {
@@ -115,6 +130,25 @@ export function buildCardActionsMenu(
 								'Не удалось записать данные HowLongToBeat',
 							);
 						}).open();
+					}),
+			);
+		}
+
+		const metadataLabel = metadataProviderLabel(plugin, item);
+		if (metadataLabel) {
+			menu.addItem((menuItem) =>
+				menuItem
+					.setTitle(`Найти данные через ${metadataLabel}…`)
+					.setIcon('film')
+					.setSection('metadata')
+					.onClick(() => {
+						openMetadataLookup(plugin, item, (details) => {
+							run(
+								'metadata update',
+								writeMediaMetadata(plugin.app, item, details),
+								'Не удалось записать метаданные',
+							);
+						});
 					}),
 			);
 		}

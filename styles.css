@@ -1,3 +1,27 @@
+/* Content Log — раскрываемые панели настроек */
+
+.cl-settings-panel {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	margin: 14px 0 18px;
+	background: var(--background-secondary);
+}
+
+.cl-settings-panel > summary {
+	cursor: pointer;
+	font-weight: 600;
+	padding: 12px 14px;
+	user-select: none;
+}
+
+.cl-settings-panel[open] > summary {
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.cl-settings-panel-content {
+	padding: 0 14px 12px;
+}
+
 /* Content Log — дашборд */
 
 .content-log-dashboard {
@@ -915,6 +939,120 @@ button.cl-source-chip:hover {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* Content Log — поиск во внешнем каталоге метаданных */
+
+.cl-metadata-modal .modal {
+	width: min(720px, 92vw);
+}
+
+.cl-metadata-search {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.cl-metadata-input {
+	flex: 1;
+}
+
+.cl-metadata-search .setting-item {
+	border: none;
+	padding: 0;
+	flex-shrink: 0;
+}
+
+.cl-metadata-results {
+	margin-top: 10px;
+	max-height: 52vh;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.cl-metadata-result {
+	display: flex;
+	gap: 10px;
+	padding: 7px 8px;
+	border-radius: 8px;
+	cursor: pointer;
+	align-items: flex-start;
+}
+
+.cl-metadata-result:hover {
+	background: var(--background-modifier-hover);
+}
+
+.cl-metadata-result-cover {
+	width: 48px;
+	height: 72px;
+	object-fit: cover;
+	border-radius: 4px;
+	flex: none;
+	background: var(--background-modifier-border);
+}
+
+.cl-metadata-result-cover.is-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 0.65em;
+	color: var(--text-faint);
+}
+
+.cl-metadata-result-main {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.cl-metadata-result-name {
+	font-weight: 600;
+}
+
+.cl-metadata-result-meta,
+.cl-metadata-result-overview,
+.cl-metadata-status,
+.cl-metadata-hint {
+	font-size: 0.78em;
+	color: var(--text-muted);
+}
+
+.cl-metadata-result-overview {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+	margin-top: 3px;
+}
+
+.cl-metadata-status {
+	padding: 10px 4px;
+}
+
+.cl-metadata-status--error {
+	color: var(--text-error);
+}
+
+.cl-metadata-hint {
+	color: var(--text-faint);
+	margin-top: 10px;
+}
+
+.cl-metadata-attribution {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 10px;
+	color: var(--text-faint);
+	font-size: 0.72em;
+}
+
+.cl-metadata-attribution img {
+	display: block;
+	width: 92px;
+	height: auto;
 }
 
 /* Content Log — импорт данных книги */

@@ -2,6 +2,18 @@ import { parse } from 'yaml';
 
 export class App {}
 
+export class SecretComponent {
+	constructor(_app: App, _container: HTMLElement) {}
+
+	setValue(_value: string): this {
+		return this;
+	}
+
+	onChange(_callback: (value: string) => unknown): this {
+		return this;
+	}
+}
+
 export class Modal {
 	constructor(_app: App) {}
 }
@@ -14,6 +26,10 @@ export class PluginSettingTab {
 
 export class Setting {
 	constructor(_container: unknown) {}
+}
+
+export function requestUrl(): Promise<never> {
+	return Promise.reject(new Error('requestUrl is not implemented in tests'));
 }
 
 export class FileSystemAdapter {}

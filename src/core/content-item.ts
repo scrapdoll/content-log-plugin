@@ -20,7 +20,7 @@ export function contentItemFromFrontmatter(
 
 	const fields: Record<string, string | number> = {};
 	for (const field of schema.fields) {
-		const value = fm[field.key];
+		const value = fm[field.key] ?? legacyMetadataValue(fm, field.key);
 		if (typeof value === 'string' || typeof value === 'number') {
 			fields[field.key] = value;
 		}
@@ -53,6 +53,15 @@ export function contentItemFromFrontmatter(
 		started: nonEmptyStringOrNull(fm['started']),
 		finished: nonEmptyStringOrNull(fm['finished']),
 	};
+}
+
+function legacyMetadataValue(
+	fm: Record<string, unknown>,
+	key: string,
+): unknown {
+	if (key === 'metadata-id') return fm['tmdb-id'];
+	if (key === 'metadata-rating') return fm['tmdb-rating'];
+	return undefined;
 }
 
 export function parseContentItem(app: App, file: TFile): ContentItem | null {
