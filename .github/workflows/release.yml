@@ -2,16 +2,24 @@ name: Release Obsidian plugin
 
 on:
     push:
-        tags:
-            - '*'
+        branches: [master]
+        tags: ['*']
+    workflow_dispatch:
+
+permissions:
+    contents: write
+    id-token: write
+    attestations: write
+
+# Serialize release runs: a push of master and the auto-created tag both
+# trigger this workflow; the second run must see the release and skip.
+concurrency:
+    group: release
+    cancel-in-progress: false
 
 jobs:
-    build:
+    release:
         runs-on: ubuntu-latest
-        permissions:
-            contents: write
-            id-token: write
-            attestations: write
         steps:
             - uses: actions/checkout@v6
 
@@ -21,17 +29,53 @@ jobs:
                   node-version: 24
                   cache: 'npm'
 
+            - name: Read plugin version
+              id: version
+              run: echo "version=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
+
+            - name: Check if release already exists
+              id: release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  VERSION: ${{ steps.version.outputs.version }}
+              run: |
+                  if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+                      echo "exists=true" >> "$GITHUB_OUTPUT"
+                      echo "Release $VERSION already exists, nothing to do."
+                  else
+                      echo "exists=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Validate versions.json
+              if: steps.release.outputs.exists != 'true'
+              run: |
+                  node -e "
+                    const manifest = require('./manifest.json');
+                    const versions = require('./versions.json');
+                    if (!(manifest.version in versions)) {
+                      console.error('versions.json has no entry for ' + manifest.version);
+                      process.exit(1);
+                    }
+                  "
+
             - name: Build plugin
+              if: steps.release.outputs.exists != 'true'
               run: |
                   npm ci
                   npm run build
 
+            - name: Run tests
+              if: steps.release.outputs.exists != 'true'
+              run: npm test
+
             - name: Check for optional styles
               id: styles
+              if: steps.release.outputs.exists != 'true'
               run: |
                   [ -f styles.css ] && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
 
             - name: Attest build provenance
+              if: steps.release.outputs.exists != 'true'
               uses: actions/attest@v4
               with:
                   subject-path: |
@@ -39,12 +83,17 @@ jobs:
                       ${{ steps.styles.outputs.exists == 'true' && 'styles.css' || '' }}
 
             - name: Create release
+              if: steps.release.outputs.exists != 'true'
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_TOKEN: ${{ github.token }}
+                  VERSION: ${{ steps.version.outputs.version }}
               run: |
-                  tag="${GITHUB_REF#refs/tags/}"
+                  assets=(main.js manifest.json)
+                  if [ -f styles.css ]; then assets+=(styles.css); fi
 
-                  gh release create "$tag" \
-                    --title="$tag" \
-                    --draft \
-                    main.js manifest.json ${{ steps.styles.outputs.exists == 'true' && 'styles.css' || '' }}
+                  gh release create "$VERSION" \
+                    --repo "$GITHUB_REPOSITORY" \
+                    --target "$GITHUB_SHA" \
+                    --title "$VERSION" \
+                    --generate-notes \
+                    "${assets[@]}"
