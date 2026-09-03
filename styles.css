@@ -22,13 +22,115 @@
 	padding: 0 14px 12px;
 }
 
-.cl-status-settings-type {
-	padding: 4px 0 8px;
+/* Content Log — статусы по типам в настройках */
+
+.cl-status-type {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	margin-bottom: 8px;
+	background: var(--background-primary);
+}
+
+.cl-status-type > summary {
+	cursor: pointer;
+	font-weight: 600;
+	padding: 10px 12px;
+	user-select: none;
+}
+
+.cl-status-type[open] > summary {
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.cl-status-settings-type:last-child {
-	border-bottom: none;
+.cl-status-type-badge {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 2px 8px;
+	vertical-align: middle;
+	font-size: 0.72em;
+	font-weight: 500;
+	color: var(--text-muted);
+	background: var(--background-modifier-border);
+	border-radius: 999px;
+}
+
+.cl-status-type-content {
+	padding: 10px 12px 12px;
+}
+
+.cl-status-group-hint {
+	font-size: 0.78em;
+	color: var(--text-muted);
+	margin: 4px 0;
+}
+
+.cl-status-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 6px;
+}
+
+.cl-status-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 3px 0;
+}
+
+.cl-status-row-key {
+	color: var(--text-faint);
+	font-size: 0.75em;
+}
+
+.cl-status-row-actions {
+	margin-left: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.85em;
+}
+
+.cl-status-action {
+	background: none;
+	border: none;
+	box-shadow: none;
+	padding: 0;
+	color: var(--text-muted);
+	font-size: inherit;
+	cursor: pointer;
+}
+
+.cl-status-action:hover {
+	color: var(--interactive-accent);
+}
+
+.cl-status-action.is-danger:hover {
+	color: var(--text-error);
+}
+
+.cl-status-action-sep {
+	color: var(--text-faint);
+}
+
+.cl-status-add {
+	background: none;
+	border: none;
+	box-shadow: none;
+	padding: 0;
+	margin-top: 10px;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.cl-status-add:hover {
+	color: var(--interactive-accent);
+}
+
+.cl-status-empty-hint {
+	color: var(--text-faint);
+	font-size: 0.85em;
+	margin: 2px 0;
 }
 
 /* Content Log — дашборд */
