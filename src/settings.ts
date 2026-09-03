@@ -11,9 +11,9 @@ import {
 	type SourceExtensionMode,
 	type SourceOpenMode,
 } from './core/source';
-import type { TypeSchema } from './types';
-import { BUILTIN_TYPES } from './types';
-import { normalizeTypeSchemas } from './core/type-schema';
+import type { StatusDef, TypeSchema } from './types';
+import { BUILTIN_TYPES, STATUSES } from './types';
+import { normalizeStatusDefs, normalizeTypeSchemas } from './core/type-schema';
 import { isRecord } from './utils/guards';
 import { CustomTypeModal } from './ui/custom-type-modal';
 import type {
@@ -21,6 +21,7 @@ import type {
 	MetadataProviderSettings,
 } from './core/metadata-provider';
 import { renderProviderSettings } from './settings/provider-settings';
+import { renderStatusSettings } from './settings/status-settings';
 
 export interface ContentLogSettings {
 	/** Корневая папка контента в vault, например «Content Log». */
@@ -31,6 +32,8 @@ export interface ContentLogSettings {
 	sourceOpenByExtension: Record<string, SourceExtensionMode>;
 	/** Пользовательские типы контента. */
 	customTypes: TypeSchema[];
+	/** Дополнительные статусы для каждого типа контента, включая встроенные. */
+	customStatuses: Record<string, StatusDef[]>;
 	/** Выбранные реализации и ссылки на секреты внешних каталогов. */
 	metadataProviders: MetadataProviderSettings;
 }
@@ -40,6 +43,7 @@ export const DEFAULT_SETTINGS: ContentLogSettings = {
 	sourceOpenMode: 'auto',
 	sourceOpenByExtension: {},
 	customTypes: [],
+	customStatuses: {},
 	metadataProviders: { selectedByKind: {}, secretNames: {} },
 };
 
@@ -70,8 +74,21 @@ export function normalizeSettings(value: unknown): ContentLogSettings {
 			raw['customTypes'],
 			BUILTIN_TYPES.map((schema) => schema.id),
 		),
+		customStatuses: normalizeCustomStatuses(raw['customStatuses']),
 		metadataProviders: normalizeMetadataProviderSettings(raw),
 	};
+}
+
+function normalizeCustomStatuses(
+	value: unknown,
+): ContentLogSettings['customStatuses'] {
+	const result: Record<string, StatusDef[]> = {};
+	const raw = isRecord(value) ? value : {};
+	for (const [typeId, statuses] of Object.entries(raw)) {
+		const normalized = normalizeStatusDefs(statuses, STATUSES.map((s) => s.id));
+		if (normalized.length > 0) result[typeId] = normalized;
+	}
+	return result;
 }
 
 export class ContentLogSettingTab extends PluginSettingTab {
@@ -205,6 +222,22 @@ export class ContentLogSettingTab extends PluginSettingTab {
 				.setCta()
 				.onClick(() => this.openTypeModal(null)),
 		);
+
+		const statuses = containerEl.createEl('details', {
+			cls: 'cl-settings-panel',
+		});
+		statuses.createEl('summary', {
+			text: 'Статусы по типам контента',
+			attr: {
+				'aria-label': 'Показать или скрыть настройки статусов',
+			},
+		});
+		renderStatusSettings(
+			this.app,
+			this.plugin,
+			statuses.createDiv({ cls: 'cl-settings-panel-content' }),
+			() => this.applySchemaChange(),
+		);
 	}
 
 	private openTypeModal(initial: TypeSchema | null): void {
@@ -222,7 +255,7 @@ export class ContentLogSettingTab extends PluginSettingTab {
 				} else {
 					list.push(schema);
 				}
-				await this.applyTypesChange();
+				await this.applySchemaChange();
 			},
 		}).open();
 	}
@@ -230,12 +263,15 @@ export class ContentLogSettingTab extends PluginSettingTab {
 	private async removeType(id: string): Promise<void> {
 		this.plugin.settings.customTypes =
 			this.plugin.settings.customTypes.filter((t) => t.id !== id);
-		await this.applyTypesChange();
+		await this.applySchemaChange();
 	}
 
-	private async applyTypesChange(): Promise<void> {
+	private async applySchemaChange(): Promise<void> {
 		await this.plugin.saveSettings();
-		rebuildTypeRegistry(this.plugin.settings.customTypes);
+		rebuildTypeRegistry(
+			this.plugin.settings.customTypes,
+			this.plugin.settings.customStatuses,
+		);
 		this.plugin.index.rebuild();
 		this.renderSettings();
 	}

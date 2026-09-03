@@ -1,12 +1,12 @@
 import { App, Notice } from 'obsidian';
-import { getTypeSchema } from './registry';
+import { getTypeSchema, statusesForType } from './registry';
 import { type HltbGame } from './hltb';
 import type { MediaMetadataDetails } from './metadata-provider';
 import {
 	type ContentItem,
-	type ContentStatus,
-	statusLabel,
-	toStatus,
+	type ContentStatusId,
+	labelForStatus,
+	parseStatusId,
 } from '../types';
 import { todayISO } from '../utils/helpers';
 import {
@@ -17,7 +17,7 @@ import { frontmatterRepository } from './frontmatter';
 
 export interface ContentCardEditInput {
 	title: string;
-	status: ContentStatus;
+	status: ContentStatusId;
 	fields: Record<string, string | number>;
 	cover: string | null;
 	source: string | null;
@@ -37,7 +37,7 @@ export async function writeContentCard(
 
 	await frontmatterRepository(app).update(item.file, (fm) => {
 		fm['title'] = title;
-		if (toStatus(fm['status']) !== input.status) {
+		if (parseStatusId(fm['status']) !== input.status) {
 			applyStatusChange(fm, input.status, todayISO());
 		}
 		for (const field of schema.fields) {
@@ -147,7 +147,7 @@ export async function writeProgressTotal(
 export async function writeStatus(
 	app: App,
 	item: ContentItem,
-	status: ContentStatus,
+	status: ContentStatusId,
 ): Promise<void> {
 	const today = todayISO();
 	await frontmatterRepository(app).update(
@@ -156,7 +156,9 @@ export async function writeStatus(
 			applyStatusChange(fm, status, today);
 		},
 	);
-	new Notice(`Статус: ${statusLabel(status)}`);
+	new Notice(
+		`Статус: ${labelForStatus(statusesForType(item.type), status)}`,
+	);
 }
 
 /** Ставит оценку 1–5; значения вне диапазона снимают оценку. */

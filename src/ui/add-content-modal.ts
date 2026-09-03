@@ -11,11 +11,9 @@ import { createContentItem } from '../core/scaffold';
 import { writeContentCard } from '../core/mutations';
 import { getAllTypeSchemas, getTypeSchema } from '../core/registry';
 import {
-	STATUSES,
 	type ContentItem,
-	type ContentStatus,
+	type ContentStatusId,
 	type ContentTypeId,
-	toStatus,
 } from '../types';
 import { CoverSuggestModal } from './cover-picker';
 import { CoverUrlModal } from './cover-url-modal';
@@ -26,7 +24,7 @@ import { SourceFileModal } from './source-file-modal';
 export class AddContentModal extends Modal {
 	private selected: ContentTypeId | null;
 	private values: Record<string, string>;
-	private status: ContentStatus;
+	private status: ContentStatusId;
 	private coverPath: string | null;
 	private duplicateConfirmed = false;
 	private sourceInput: TextComponent | null = null;
@@ -123,11 +121,16 @@ export class AddContentModal extends Modal {
 		}
 
 		new Setting(this.contentEl).setName('Статус').addDropdown((drop) => {
-			for (const status of STATUSES) {
+			// Статус карточки мог пропасть из настроек — показываем его как есть,
+			// чтобы сохранение формы не потеряло значение молча.
+			if (!schema.statuses.some((s) => s.id === this.status)) {
+				drop.addOption(this.status, this.status);
+			}
+			for (const status of schema.statuses) {
 				drop.addOption(status.id, status.label);
 			}
 			drop.setValue(this.status).onChange((value) => {
-				this.status = toStatus(value);
+				this.status = value;
 			});
 		});
 

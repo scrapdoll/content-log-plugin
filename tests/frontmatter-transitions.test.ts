@@ -77,4 +77,56 @@ describe('frontmatter transitions', () => {
 			started: '2026-08-01',
 		});
 	});
+
+	it('treats a custom status as a label and keeps dates untouched', () => {
+		const fm: Record<string, unknown> = {
+			status: 'in-progress',
+			started: '2026-08-01',
+		};
+
+		applyStatusChange(fm, 'on-hold', TODAY);
+
+		expect(fm).toEqual({
+			status: 'on-hold',
+			started: '2026-08-01',
+		});
+	});
+
+	it('auto-finishes from a custom status when progress reaches the total', () => {
+		const fm: Record<string, unknown> = {
+			status: 'on-hold',
+			'pages-read': 10,
+			'pages-total': 120,
+			started: '2026-08-01',
+		};
+
+		applyProgressChange(fm, PROGRESS, 120, TODAY);
+
+		expect(fm).toMatchObject({
+			status: 'finished',
+			started: '2026-08-01',
+			finished: TODAY,
+		});
+	});
+
+	it('keeps a custom status on partial progress changes', () => {
+		const fm: Record<string, unknown> = {
+			status: 'on-hold',
+			'pages-read': 10,
+			'pages-total': 120,
+		};
+
+		applyProgressChange(fm, PROGRESS, 50, TODAY);
+
+		expect(fm['status']).toBe('on-hold');
+		expect(fm).not.toHaveProperty('started');
+	});
+
+	it('auto-starts a card without a status field on first progress', () => {
+		const fm: Record<string, unknown> = { 'pages-total': 120 };
+
+		applyProgressChange(fm, PROGRESS, 30, TODAY);
+
+		expect(fm).toMatchObject({ status: 'in-progress', started: TODAY });
+	});
 });

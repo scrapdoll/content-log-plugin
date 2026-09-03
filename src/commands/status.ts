@@ -1,6 +1,7 @@
 import { App, Modal } from 'obsidian';
 import { writeStatus } from '../core/mutations';
-import { STATUSES, type ContentItem } from '../types';
+import { statusesForType } from '../core/registry';
+import type { ContentItem } from '../types';
 import { runCardAction } from '../ui/action-errors';
 
 /** Модалка выбора статуса текущей карточки. */
@@ -14,7 +15,7 @@ export class UpdateStatusModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass('content-log-modal');
-		for (const status of STATUSES) {
+		for (const status of statusesForType(this.item.type)) {
 			const button = contentEl.createEl('button', {
 				cls: 'cl-status-option',
 				text: status.label,

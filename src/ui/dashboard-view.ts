@@ -20,7 +20,11 @@ import {
 	renderDashboardChart,
 	renderDashboardStats,
 } from './dashboard-summary';
-import { renderDashboardControls } from './dashboard-controls';
+import {
+	renderDashboardControls,
+	setStatusSelectOptions,
+	statusesForFilter,
+} from './dashboard-controls';
 
 export const VIEW_TYPE_CONTENT_DASHBOARD = 'content-log-dashboard';
 
@@ -185,13 +189,26 @@ export class ContentDashboardView extends ItemView {
 
 	private schemasSignature(): string {
 		return getAllTypeSchemas()
-			.map((schema) => `${schema.id}:${schema.label}:${schema.icon}`)
+			.map(
+				(schema) =>
+					`${schema.id}:${schema.label}:${schema.icon}:${schema.statuses
+						.map((s) => `${s.id}/${s.label}/${s.color ?? ''}`)
+						.join(',')}`,
+			)
 			.join('|');
 	}
 
 	private syncHeader(): void {
 		if (this.typeSelect) this.typeSelect.value = this.filterType;
-		if (this.statusSelect) this.statusSelect.value = this.filterStatus;
+		if (this.statusSelect) {
+			// Набор статусов зависит от типа: при смене типа фильтр статусов
+			// пересобирается, а недействующий выбор сбрасывается на «Все».
+			this.filterStatus = setStatusSelectOptions(
+				this.statusSelect,
+				statusesForFilter(this.filterType),
+				this.filterStatus,
+			);
+		}
 		if (this.ratingSelect) {
 			this.ratingSelect.value = String(this.filterRating);
 		}

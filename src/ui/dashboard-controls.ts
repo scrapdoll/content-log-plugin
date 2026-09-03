@@ -1,6 +1,10 @@
 import { setIcon } from 'obsidian';
-import { getAllTypeSchemas } from '../core/registry';
-import { STATUSES, type ContentStatus } from '../types';
+import {
+	getAllStatuses,
+	getAllTypeSchemas,
+	statusesForType,
+} from '../core/registry';
+import type { StatusDef } from '../types';
 import type {
 	RatingFilter,
 	SortKey,
@@ -57,15 +61,13 @@ export function renderDashboardControls(
 	typeSelect.addEventListener('change', () => callbacks.onType(typeSelect.value));
 
 	const statusSelect = header.createEl('select');
-	addOption(statusSelect, 'All', 'Все статусы');
-	for (const status of STATUSES) addOption(statusSelect, status.id, status.label);
-	statusSelect.value = state.status;
+	setStatusSelectOptions(
+		statusSelect,
+		statusesForFilter(state.type),
+		state.status,
+	);
 	statusSelect.addEventListener('change', () =>
-		callbacks.onStatus(
-			statusSelect.value === 'All'
-				? 'All'
-				: (statusSelect.value as ContentStatus),
-		),
+		callbacks.onStatus(statusSelect.value === 'All' ? 'All' : statusSelect.value),
 	);
 
 	const ratingSelect = header.createEl('select');
@@ -102,6 +104,32 @@ export function renderDashboardControls(
 	cardsButton.addEventListener('click', () => callbacks.onView('Cards'));
 
 	return { typeSelect, statusSelect, ratingSelect, listButton, cardsButton };
+}
+
+/** Статусы для фильтра: список выбранного типа или объединение всех типов. */
+export function statusesForFilter(type: TypeFilter): StatusDef[] {
+	return type === 'All' ? getAllStatuses() : statusesForType(type);
+}
+
+/**
+ * Пересобирает опции фильтра статусов. Если текущий фильтр ссылается на
+ * статус, которого нет в новом списке, сбрасывает на «Все» и возвращает
+ * действующее значение.
+ */
+export function setStatusSelectOptions(
+	select: HTMLSelectElement,
+	statuses: StatusDef[],
+	selected: StatusFilter,
+): StatusFilter {
+	select.empty();
+	addOption(select, 'All', 'Все статусы');
+	for (const status of statuses) addOption(select, status.id, status.label);
+	const effective =
+		selected !== 'All' && statuses.some((s) => s.id === selected)
+			? selected
+			: 'All';
+	select.value = effective;
+	return effective;
 }
 
 function addOption(

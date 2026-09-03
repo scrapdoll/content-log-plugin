@@ -12,13 +12,13 @@ import {
 import { resolveCoverSrc } from '../core/cover';
 import { hltbGameUrl } from '../core/hltb';
 import { formatHours } from '../utils/format';
-import { getTypeSchema, isKnownType } from '../core/registry';
-import { RateContentModal } from '../commands/rating';
 import {
-	STATUSES,
-	type ContentItem,
-	statusLabel,
-} from '../types';
+	getTypeSchema,
+	isKnownType,
+	statusesForType,
+} from '../core/registry';
+import { RateContentModal } from '../commands/rating';
+import { labelForStatus, type ContentItem } from '../types';
 import {
 	progressPercent,
 	progressText,
@@ -28,6 +28,7 @@ import { appendSourceChip } from './source-chip';
 import { createCardActionRunner } from './action-errors';
 import { buildCardActionsMenu } from './card-actions-menu';
 import { buildCardNotesSection } from './card-notes';
+import { statusPillStyle } from './status-style';
 
 /**
  * Интерактивная шапка карточки: обложка, статус, прогресс и список
@@ -152,13 +153,16 @@ function buildStatusPill(
 	refresh: () => void,
 ): void {
 	const run = createCardActionRunner(refresh);
+	const statuses = statusesForType(item.type);
+	const style = statusPillStyle(statuses, item.status);
 	const statusPill = row.createDiv({
-		cls: `cl-status cl-status--${item.status} cl-card-status`,
-		text: statusLabel(item.status),
+		cls: 'cl-status cl-card-status',
+		text: labelForStatus(statuses, item.status),
+		attr: style ? { style } : undefined,
 	});
 	statusPill.addEventListener('click', (evt) => {
 		const menu = new Menu();
-		for (const status of STATUSES) {
+		for (const status of statuses) {
 			menu.addItem((menuItem) =>
 				menuItem
 					.setTitle(status.label)

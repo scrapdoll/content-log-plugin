@@ -34,7 +34,10 @@ export default class ContentLogPlugin extends Plugin {
 			(secretName) => this.app.secretStorage.getSecret(secretName),
 		);
 		await this.loadSettings();
-		rebuildTypeRegistry(this.settings.customTypes);
+		rebuildTypeRegistry(
+			this.settings.customTypes,
+			this.settings.customStatuses,
+		);
 
 		this.index = new ContentIndex(this);
 		this.registerView(

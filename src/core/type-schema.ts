@@ -1,4 +1,10 @@
-import type { FieldDef, TypeSchema } from '../types';
+import {
+	STATUS_COLORS,
+	type FieldDef,
+	type StatusColor,
+	type StatusDef,
+	type TypeSchema,
+} from '../types';
 import { isRecord } from '../utils/guards';
 
 const KEY_PATTERN = /^[a-zA-Z0-9_-]+$/;
@@ -130,6 +136,38 @@ export function validateTypeSchema(value: unknown): TypeSchemaValidationResult {
 		},
 		errors: [],
 	};
+}
+
+/**
+ * Нормализует список пользовательских статусов, отбрасывая повреждённые
+ * записи, дубли и коллизии с зарезервированными id.
+ */
+export function normalizeStatusDefs(
+	value: unknown,
+	reservedIds: Iterable<string> = [],
+): StatusDef[] {
+	if (!Array.isArray(value)) return [];
+	const ids = new Set(reservedIds);
+	const statuses: StatusDef[] = [];
+	for (const candidate of value) {
+		const status = normalizeStatusDef(candidate);
+		if (!status || ids.has(status.id)) continue;
+		ids.add(status.id);
+		statuses.push(status);
+	}
+	return statuses;
+}
+
+function normalizeStatusDef(value: unknown): StatusDef | null {
+	if (!isRecord(value)) return null;
+	const id = requiredKey(value['id']);
+	const label = requiredText(value['label']);
+	const color = value['color'];
+	if (!id || !label) return null;
+	if (color !== null && !STATUS_COLORS.includes(color as StatusColor)) {
+		return null;
+	}
+	return { id, label, color: color as StatusColor | null };
 }
 
 function normalizeField(value: unknown): FieldDef | null {

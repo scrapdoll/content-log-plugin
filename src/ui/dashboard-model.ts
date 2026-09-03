@@ -1,9 +1,9 @@
 import { formatHours } from '../utils/format';
-import type { ContentItem, ContentStatus } from '../types';
+import type { ContentItem, ContentStatusId } from '../types';
 import { progressPercent } from '../utils/helpers';
 
 export type TypeFilter = string;
-export type StatusFilter = ContentStatus | 'All';
+export type StatusFilter = ContentStatusId | 'All';
 export type RatingFilter = 'All' | 1 | 2 | 3 | 4 | 5;
 export type SortKey = 'Updated' | 'Title' | 'Progress';
 export type ViewMode = 'List' | 'Cards';

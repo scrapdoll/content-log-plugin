@@ -15,15 +15,34 @@ describe('normalizeSettings', () => {
 			tmdbSecretName: '  shared-tmdb  ',
 		});
 
-			expect(settings).toEqual({
+		expect(settings).toEqual({
 			rootFolder: 'Library',
 			sourceOpenMode: 'auto',
 			sourceOpenByExtension: { epub: 'tab' },
 			customTypes: [],
+			customStatuses: {},
 			metadataProviders: {
 				selectedByKind: {},
 				secretNames: { tmdb: 'shared-tmdb' },
 			},
+		});
+	});
+
+	it('normalizes custom statuses per type and drops empty lists', () => {
+		const settings = normalizeSettings({
+			customStatuses: {
+				book: [
+					{ id: 'on-hold', label: 'На паузе', color: 'purple' },
+					{ id: 'finished', label: 'Дубль встроенного', color: null },
+					{ id: 'broken', label: '', color: null },
+				],
+				movie: 'garbage',
+				anime: [],
+			},
+		});
+
+		expect(settings.customStatuses).toEqual({
+			book: [{ id: 'on-hold', label: 'На паузе', color: 'purple' }],
 		});
 	});
 

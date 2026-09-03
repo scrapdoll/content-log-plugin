@@ -7,7 +7,7 @@ type VaultCallback = (file: TFile | TFolder, oldPath?: string) => void;
 
 describe('ContentIndex incremental updates', () => {
 	it('reparses only the changed card and removes deleted folders', () => {
-		rebuildTypeRegistry([]);
+		rebuildTypeRegistry([], {});
 		const root = new TFolder('Content Log');
 		const books = new TFolder('Content Log/Books');
 		const dune = new TFile('Content Log/Books/Dune.md');

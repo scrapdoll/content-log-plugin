@@ -61,7 +61,7 @@ function fakeProvider(
 
 describe('metadata provider boundary', () => {
 	it('reads legacy TMDB fields through provider-neutral schema keys', () => {
-		rebuildTypeRegistry([]);
+		rebuildTypeRegistry([], {});
 		const item = contentItemFromFrontmatter(new TFile('Movies/Dune.md') as never, {
 			type: 'movie',
 			title: 'Дюна',

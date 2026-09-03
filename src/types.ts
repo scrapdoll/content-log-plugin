@@ -8,6 +8,12 @@ export type ContentTypeId = string;
 
 export type ContentStatus = 'planned' | 'in-progress' | 'finished' | 'abandoned';
 
+/**
+ * Id любого статуса: встроенный или пользовательский. Пересечение с
+ * `string & {}` сохраняет автодополнение встроенных id.
+ */
+export type ContentStatusId = ContentStatus | (string & {});
+
 export type FieldKind = 'text' | 'number';
 
 export interface FieldDef {
@@ -55,7 +61,7 @@ export interface ContentItem {
 	file: TFile;
 	type: ContentTypeId;
 	title: string;
-	status: ContentStatus;
+	status: ContentStatusId;
 	fields: Record<string, string | number>;
 	progress: ProgressValue;
 	/** Оценка 1–5 или null, если не оценено. */
@@ -72,9 +78,33 @@ export interface ContentItem {
 	finished: string | null;
 }
 
+/** Цвет пилюли статуса: имя CSS-переменной Obsidian --color-*. */
+export type StatusColor =
+	| 'blue'
+	| 'green'
+	| 'orange'
+	| 'red'
+	| 'yellow'
+	| 'purple'
+	| 'cyan'
+	| 'pink';
+
+export const STATUS_COLORS: readonly StatusColor[] = [
+	'blue',
+	'green',
+	'orange',
+	'red',
+	'yellow',
+	'purple',
+	'cyan',
+	'pink',
+];
+
 export interface StatusDef {
-	id: ContentStatus;
+	id: string;
 	label: string;
+	/** Цвет пилюли; null — нейтральный серый. */
+	color: StatusColor | null;
 }
 
 export const BUILTIN_TYPES: TypeSchema[] = [
@@ -205,17 +235,21 @@ export const BUILTIN_TYPES: TypeSchema[] = [
 ];
 
 export const STATUSES: StatusDef[] = [
-	{ id: 'planned', label: 'Запланировано' },
-	{ id: 'in-progress', label: 'В работе' },
-	{ id: 'finished', label: 'Завершено' },
-	{ id: 'abandoned', label: 'Брошено' },
+	{ id: 'planned', label: 'Запланировано', color: null },
+	{ id: 'in-progress', label: 'В работе', color: 'blue' },
+	{ id: 'finished', label: 'Завершено', color: 'green' },
+	{ id: 'abandoned', label: 'Брошено', color: 'orange' },
 ];
 
-export function toStatus(value: unknown): ContentStatus {
-	const status = STATUSES.find((s) => s.id === value);
-	return status ? status.id : 'planned';
+/**
+ * Любая непустая строка проходит как есть — включая id пользовательских
+ * статусов и значения, удалённые из настроек. Иначе 'planned'.
+ */
+export function parseStatusId(value: unknown): ContentStatusId {
+	return typeof value === 'string' && value.trim() !== '' ? value : 'planned';
 }
 
-export function statusLabel(status: ContentStatus): string {
-	return STATUSES.find((s) => s.id === status)?.label ?? status;
+/** Подпись статуса из списка типа; для неизвестного id — сам id. */
+export function labelForStatus(statuses: StatusDef[], id: string): string {
+	return statuses.find((s) => s.id === id)?.label ?? id;
 }

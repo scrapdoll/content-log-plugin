@@ -46,6 +46,22 @@ describe('dashboard model', () => {
 		expect(original.map((value) => value.title)).toEqual(['Бета', 'Альфа']);
 	});
 
+	it('filters by a custom status id', () => {
+		const items = [
+			item('На паузе', { mtime: 1, status: 'on-hold' }),
+			item('Читаю', { mtime: 2, status: 'in-progress' }),
+		];
+
+		const selected = selectDashboardItems(items, {
+			type: 'All',
+			status: 'on-hold',
+			minimumRating: 'All',
+			sort: 'Title',
+		});
+
+		expect(selected.map((value) => value.title)).toEqual(['На паузе']);
+	});
+
 	it('uses path and mtime as the stable redraw signature', () => {
 		const first = item('Один', { mtime: 1 });
 		const second = item('Два', { mtime: 2 });

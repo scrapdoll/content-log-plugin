@@ -2,11 +2,12 @@ import { setIcon } from 'obsidian';
 import type ContentLogPlugin from '../main';
 import { resolveCoverSrc } from '../core/cover';
 import { getTypeSchema } from '../core/registry';
-import { statusLabel, type ContentItem } from '../types';
+import { labelForStatus, type ContentItem, type StatusDef } from '../types';
 import { progressPercent, progressText } from '../utils/helpers';
 import { hltbTimesText } from './dashboard-model';
 import { appendSourceChip } from './source-chip';
 import { buildCardActionsMenu } from './card-actions-menu';
+import { statusPillStyle } from './status-style';
 
 export function renderDashboardItemRow(
 	plugin: ContentLogPlugin,
@@ -47,7 +48,7 @@ export function renderDashboardItemRow(
 
 	if (schema.progressField) renderProgress(row, 'cl-item-progress', item);
 	renderRating(row, item);
-	renderStatus(row, item);
+	renderStatus(row, item, schema.statuses);
 	buildCardActionsMenu(plugin, row, item, () => undefined);
 }
 
@@ -94,7 +95,7 @@ export function renderDashboardItemCard(
 	const meta = body.createDiv({ cls: 'cl-card-big-meta' });
 	appendSourceChip(plugin, meta, item);
 	renderRating(meta, item);
-	renderStatus(meta, item);
+	renderStatus(meta, item, schema.statuses);
 	buildCardActionsMenu(plugin, meta, item, () => undefined);
 }
 
@@ -124,9 +125,15 @@ function renderRating(parent: HTMLElement, item: ContentItem): void {
 	});
 }
 
-function renderStatus(parent: HTMLElement, item: ContentItem): void {
+function renderStatus(
+	parent: HTMLElement,
+	item: ContentItem,
+	statuses: StatusDef[],
+): void {
+	const style = statusPillStyle(statuses, item.status);
 	parent.createDiv({
-		cls: `cl-status cl-status--${item.status}`,
-		text: statusLabel(item.status),
+		cls: 'cl-status',
+		text: labelForStatus(statuses, item.status),
+		attr: style ? { style } : undefined,
 	});
 }

@@ -1,17 +1,18 @@
 import { App, Notice, TFile, Vault } from 'obsidian';
 import { getTypeSchema } from './registry';
 import {
-	type ContentStatus,
+	type ContentStatusId,
 	type ContentTypeId,
 } from '../types';
 import { renderCardTemplate } from './templates';
 import { normalizeRoot, todayISO } from '../utils/helpers';
 import { frontmatterRepository } from './frontmatter';
+import { applyStatusChange } from './frontmatter-transitions';
 
 export interface NewContentInput {
 	type: ContentTypeId;
 	title: string;
-	status: ContentStatus;
+	status: ContentStatusId;
 	fields: Record<string, string | number>;
 	cover?: string | null;
 	source?: string | null;
@@ -89,29 +90,25 @@ export async function createContentItem(
 	await frontmatterRepository(app).update(
 		file,
 		(fm: Record<string, unknown>) => {
-		fm['type'] = input.type;
-		fm['title'] = title;
-		fm['status'] = input.status;
-		for (const field of schema.fields) {
-			const value = input.fields[field.key];
-			if (value !== undefined && value !== '') {
-				fm[field.key] = value;
+			fm['type'] = input.type;
+			fm['title'] = title;
+			applyStatusChange(fm, input.status, todayISO());
+			for (const field of schema.fields) {
+				const value = input.fields[field.key];
+				if (value !== undefined && value !== '') {
+					fm[field.key] = value;
+				}
 			}
-		}
-		if (input.cover) {
-			fm['cover'] = input.cover;
-		}
-		if (input.source) {
-			fm['source'] = input.source;
-		}
-		if (input.description) {
-			fm['description'] = input.description;
-		}
-		if (input.status === 'in-progress' || input.status === 'finished') {
-			fm['started'] = todayISO();
-			if (input.status === 'finished') fm['finished'] = todayISO();
-		}
-	},
+			if (input.cover) {
+				fm['cover'] = input.cover;
+			}
+			if (input.source) {
+				fm['source'] = input.source;
+			}
+			if (input.description) {
+				fm['description'] = input.description;
+			}
+		},
 	);
 
 	return file;

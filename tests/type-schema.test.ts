@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	normalizeStatusDefs,
 	normalizeTypeSchema,
 	normalizeTypeSchemas,
 	validateTypeSchema,
@@ -88,5 +89,33 @@ describe('normalizeTypeSchema', () => {
 		);
 
 		expect(schemas.map((schema) => schema.id)).toEqual(['podcast']);
+	});
+});
+
+describe('normalizeStatusDefs', () => {
+	it('drops damaged entries, duplicates and reserved ids', () => {
+		const statuses = normalizeStatusDefs(
+			[
+				{ id: 'on-hold', label: 'На паузе', color: 'purple' },
+				{ id: 'on-hold', label: 'Дубль', color: null },
+				{ id: 'finished', label: 'Как встроенный', color: null },
+				{ id: 'плохой ключ', label: 'Ключ', color: null },
+				{ id: 'no-label', label: '', color: null },
+				{ id: 'bad-color', label: 'Цвет', color: 'chartreuse' },
+				{ id: 'neutral', label: 'Без цвета', color: null },
+				42,
+			],
+			['finished'],
+		);
+
+		expect(statuses).toEqual([
+			{ id: 'on-hold', label: 'На паузе', color: 'purple' },
+			{ id: 'neutral', label: 'Без цвета', color: null },
+		]);
+	});
+
+	it('returns an empty list for non-array input', () => {
+		expect(normalizeStatusDefs('garbage')).toEqual([]);
+		expect(normalizeStatusDefs(null)).toEqual([]);
 	});
 });

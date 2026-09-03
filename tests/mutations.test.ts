@@ -13,7 +13,7 @@ import { rebuildTypeRegistry } from '../src/core/registry';
 describe('text field mutations', () => {
 	beforeEach(() => {
 		Notice.messages = [];
-		rebuildTypeRegistry([]);
+		rebuildTypeRegistry([], {});
 	});
 
 	it('writes and removes fields through the shared frontmatter boundary', async () => {

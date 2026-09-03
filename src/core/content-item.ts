@@ -1,6 +1,6 @@
 import { type App, type TFile } from 'obsidian';
 import type { ContentItem, HltbTimes, TypeSchema } from '../types';
-import { toStatus } from '../types';
+import { parseStatusId } from '../types';
 import {
 	finiteNumberOrNull,
 	nonEmptyStringOrNull,
@@ -33,7 +33,7 @@ export function contentItemFromFrontmatter(
 			typeof fm['title'] === 'string' && fm['title']
 				? fm['title']
 				: file.basename,
-		status: toStatus(fm['status']),
+		status: parseStatusId(fm['status']),
 		fields,
 		progress: {
 			current: finiteNumberOrNull(

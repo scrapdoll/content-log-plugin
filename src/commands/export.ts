@@ -1,8 +1,7 @@
 import { Notice, TFile } from 'obsidian';
 import type ContentLogPlugin from '../main';
-import { getTypeSchema } from '../core/registry';
+import { getAllStatuses, getTypeSchema } from '../core/registry';
 import { DEFAULT_SETTINGS } from '../settings';
-import { STATUSES } from '../types';
 import { normalizeRoot, progressText, todayISO } from '../utils/helpers';
 
 /**
@@ -25,7 +24,7 @@ export async function exportDashboardMarkdown(
 		'',
 	];
 
-	for (const status of STATUSES) {
+	for (const status of getAllStatuses()) {
 		const group = items
 			.filter((item) => item.status === status.id)
 			.sort((a, b) => collator.compare(a.title, b.title));

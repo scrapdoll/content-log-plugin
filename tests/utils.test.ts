@@ -27,7 +27,7 @@ describe('shared utilities', () => {
 	});
 
 	it('keeps path, progress and hour formatting deterministic', () => {
-		rebuildTypeRegistry([]);
+		rebuildTypeRegistry([], {});
 		const item = {
 			type: 'book',
 			progress: { current: 25, total: 100 },

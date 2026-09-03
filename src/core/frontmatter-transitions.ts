@@ -1,6 +1,6 @@
 import {
-	type ContentStatus,
-	toStatus,
+	type ContentStatusId,
+	parseStatusId,
 } from '../types';
 import { finiteNumberOrNull } from '../utils/guards';
 
@@ -28,7 +28,7 @@ export function applyProgressChange(
 	if (total !== null) next = Math.min(next, total);
 	fm[schema.progressField] = next;
 
-	const currentStatus = toStatus(fm['status']);
+	const currentStatus = parseStatusId(fm['status']);
 	if (total !== null && next >= total) {
 		applyStatusChange(fm, 'finished', today);
 	} else if (currentStatus === 'planned' && next > 0) {
@@ -40,10 +40,13 @@ export function applyProgressChange(
 	return next;
 }
 
-/** Поддерживает status, started и finished как единое состояние. */
+/**
+ * Поддерживает status, started и finished как единое состояние.
+ * Пользовательский статус — только метка: меняет status, даты не трогает.
+ */
 export function applyStatusChange(
 	fm: Frontmatter,
-	status: ContentStatus,
+	status: ContentStatusId,
 	today: string,
 ): void {
 	fm['status'] = status;
