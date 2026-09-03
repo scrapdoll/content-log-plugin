@@ -9,7 +9,6 @@ import {
 	type RatingFilter,
 	type SortKey,
 	type StatusFilter,
-	type TypeFilter,
 	type ViewMode,
 } from './dashboard-model';
 import {
@@ -23,6 +22,7 @@ import {
 import {
 	renderDashboardControls,
 	setStatusSelectOptions,
+	setTypeSelectOptions,
 	statusesForFilter,
 } from './dashboard-controls';
 
@@ -30,7 +30,7 @@ export const VIEW_TYPE_CONTENT_DASHBOARD = 'content-log-dashboard';
 
 /** Живой дашборд со всем контентом: статистика, график, фильтры, обложки. */
 export class ContentDashboardView extends ItemView {
-	private filterType: TypeFilter = 'All';
+	private filterTypes: string[] = [];
 	private filterStatus: StatusFilter = 'All';
 	private filterRating: RatingFilter = 'All';
 	private sortBy: SortKey = 'Updated';
@@ -92,7 +92,7 @@ export class ContentDashboardView extends ItemView {
 		const controls = renderDashboardControls(
 			this.contentEl,
 			{
-				type: this.filterType,
+				types: this.filterTypes,
 				status: this.filterStatus,
 				rating: this.filterRating,
 				sort: this.sortBy,
@@ -101,7 +101,7 @@ export class ContentDashboardView extends ItemView {
 			{
 				onAdd: () => new AddContentModal(this.app, this.plugin).open(),
 				onExport: () => void exportDashboardMarkdown(this.plugin),
-				onType: (value) => this.setFilters({ type: value }),
+				onTypes: (value) => this.setFilters({ types: value }),
 				onStatus: (value) => this.setFilters({ status: value }),
 				onRating: (value) => this.setFilters({ rating: value }),
 				onSort: (value) => {
@@ -129,24 +129,32 @@ export class ContentDashboardView extends ItemView {
 			stats,
 			this.plugin.index.getAll(),
 			{
-				type: this.filterType,
+				types: this.filterTypes,
 				status: this.filterStatus,
 				rating: this.filterRating,
 			},
 			{
-				onType: (value) => this.setFilters({ type: value }),
+				onTypeToggle: (id) => this.toggleType(id),
 				onStatus: (value) => this.setFilters({ status: value }),
 				onRating: (value) => this.setFilters({ rating: value }),
 			},
 		);
 	}
 
+	private toggleType(id: string): void {
+		this.setFilters({
+			types: this.filterTypes.includes(id)
+				? this.filterTypes.filter((type) => type !== id)
+				: [...this.filterTypes, id],
+		});
+	}
+
 	private setFilters(values: {
-		type?: TypeFilter;
+		types?: string[];
 		status?: StatusFilter;
 		rating?: RatingFilter;
 	}): void {
-		if (values.type !== undefined) this.filterType = values.type;
+		if (values.types !== undefined) this.filterTypes = values.types;
 		if (values.status !== undefined) this.filterStatus = values.status;
 		if (values.rating !== undefined) this.filterRating = values.rating;
 		this.syncHeader();
@@ -199,13 +207,15 @@ export class ContentDashboardView extends ItemView {
 	}
 
 	private syncHeader(): void {
-		if (this.typeSelect) this.typeSelect.value = this.filterType;
+		if (this.typeSelect) {
+			setTypeSelectOptions(this.typeSelect, this.filterTypes);
+		}
 		if (this.statusSelect) {
-			// Набор статусов зависит от типа: при смене типа фильтр статусов
-			// пересобирается, а недействующий выбор сбрасывается на «Все».
+			// Набор статусов зависит от выбранных типов: при смене типов фильтр
+			// статусов пересобирается, а недействующий выбор сбрасывается.
 			this.filterStatus = setStatusSelectOptions(
 				this.statusSelect,
-				statusesForFilter(this.filterType),
+				statusesForFilter(this.filterTypes),
 				this.filterStatus,
 			);
 		}
@@ -224,7 +234,7 @@ export class ContentDashboardView extends ItemView {
 		list.addClass(this.viewMode === 'Cards' ? 'cl-cards-grid' : 'cl-list');
 
 		const items = selectDashboardItems(this.plugin.index.getAll(), {
-			type: this.filterType,
+			types: this.filterTypes,
 			status: this.filterStatus,
 			minimumRating: this.filterRating,
 			sort: this.sortBy,

@@ -36,7 +36,7 @@ describe('dashboard model', () => {
 		];
 
 		const selected = selectDashboardItems(original, {
-			type: 'All',
+			types: [],
 			status: 'All',
 			minimumRating: 4,
 			sort: 'Title',
@@ -46,6 +46,23 @@ describe('dashboard model', () => {
 		expect(original.map((value) => value.title)).toEqual(['Бета', 'Альфа']);
 	});
 
+	it('filters by several types at once', () => {
+		const items = [
+			item('Книга', { mtime: 1, type: 'book' }),
+			item('Игра', { mtime: 2, type: 'game' }),
+			item('Фильм', { mtime: 3, type: 'movie' }),
+		];
+
+		const selected = selectDashboardItems(items, {
+			types: ['book', 'game'],
+			status: 'All',
+			minimumRating: 'All',
+			sort: 'Updated',
+		});
+
+		expect(selected.map((value) => value.title)).toEqual(['Игра', 'Книга']);
+	});
+
 	it('filters by a custom status id', () => {
 		const items = [
 			item('На паузе', { mtime: 1, status: 'on-hold' }),
@@ -53,7 +70,7 @@ describe('dashboard model', () => {
 		];
 
 		const selected = selectDashboardItems(items, {
-			type: 'All',
+			types: [],
 			status: 'on-hold',
 			minimumRating: 'All',
 			sort: 'Title',

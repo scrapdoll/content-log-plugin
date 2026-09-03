@@ -1,20 +1,18 @@
 import { setIcon } from 'obsidian';
-import {
-	getAllStatuses,
-	getAllTypeSchemas,
-	statusesForType,
-} from '../core/registry';
-import type { StatusDef } from '../types';
+import { getAllTypeSchemas, statusesForType } from '../core/registry';
+import { STATUSES, type StatusDef } from '../types';
 import type {
 	RatingFilter,
 	SortKey,
 	StatusFilter,
-	TypeFilter,
 	ViewMode,
 } from './dashboard-model';
 
+/** Значение опции-заглушки для множественного выбора типов. */
+const MULTI_TYPE_VALUE = 'Multiple';
+
 export interface DashboardControlsState {
-	type: TypeFilter;
+	types: string[];
 	status: StatusFilter;
 	rating: RatingFilter;
 	sort: SortKey;
@@ -24,7 +22,7 @@ export interface DashboardControlsState {
 export interface DashboardControlsCallbacks {
 	onAdd: () => void;
 	onExport: () => void;
-	onType: (value: TypeFilter) => void;
+	onTypes: (value: string[]) => void;
 	onStatus: (value: StatusFilter) => void;
 	onRating: (value: RatingFilter) => void;
 	onSort: (value: SortKey) => void;
@@ -53,17 +51,17 @@ export function renderDashboardControls(
 		.addEventListener('click', callbacks.onExport);
 
 	const typeSelect = header.createEl('select');
-	addOption(typeSelect, 'All', 'Все типы');
-	for (const schema of getAllTypeSchemas()) {
-		addOption(typeSelect, schema.id, schema.label);
-	}
-	typeSelect.value = state.type;
-	typeSelect.addEventListener('change', () => callbacks.onType(typeSelect.value));
+	setTypeSelectOptions(typeSelect, state.types);
+	typeSelect.addEventListener('change', () => {
+		const value = typeSelect.value;
+		if (value === MULTI_TYPE_VALUE) return;
+		callbacks.onTypes(value === 'All' ? [] : [value]);
+	});
 
 	const statusSelect = header.createEl('select');
 	setStatusSelectOptions(
 		statusSelect,
-		statusesForFilter(state.type),
+		statusesForFilter(state.types),
 		state.status,
 	);
 	statusSelect.addEventListener('change', () =>
@@ -106,9 +104,39 @@ export function renderDashboardControls(
 	return { typeSelect, statusSelect, ratingSelect, listButton, cardsButton };
 }
 
-/** Статусы для фильтра: список выбранного типа или объединение всех типов. */
-export function statusesForFilter(type: TypeFilter): StatusDef[] {
-	return type === 'All' ? getAllStatuses() : statusesForType(type);
+/**
+ * Статусы для фильтра: пустой выбор — только встроенные, один тип — его
+ * список, несколько типов — объединение их статусов (без дублей по id).
+ */
+export function statusesForFilter(types: string[]): StatusDef[] {
+	if (types.length === 0) return STATUSES;
+	const seen = new Map<string, StatusDef>();
+	for (const id of types) {
+		for (const status of statusesForType(id)) {
+			if (!seen.has(status.id)) seen.set(status.id, status);
+		}
+	}
+	return [...seen.values()];
+}
+
+/**
+ * Пересобирает опции списка типов. При множественном выборе добавляет сверху
+ * опцию-заглушку «Выбрано типов: N», чтобы список не врал выбранным значением.
+ */
+export function setTypeSelectOptions(
+	select: HTMLSelectElement,
+	selected: string[],
+): void {
+	select.empty();
+	if (selected.length > 1) {
+		addOption(select, MULTI_TYPE_VALUE, `Выбрано типов: ${selected.length}`);
+	}
+	addOption(select, 'All', 'Все типы');
+	for (const schema of getAllTypeSchemas()) {
+		addOption(select, schema.id, schema.label);
+	}
+	if (selected.length > 1) select.value = MULTI_TYPE_VALUE;
+	else select.value = selected[0] ?? 'All';
 }
 
 /**

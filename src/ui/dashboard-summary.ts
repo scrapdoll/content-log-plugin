@@ -6,17 +6,17 @@ import {
 	completionMonths,
 	type RatingFilter,
 	type StatusFilter,
-	type TypeFilter,
 } from './dashboard-model';
 
 interface DashboardFilterState {
-	type: TypeFilter;
+	types: string[];
 	status: StatusFilter;
 	rating: RatingFilter;
 }
 
 interface DashboardFilterCallbacks {
-	onType: (value: TypeFilter) => void;
+	/** Клик по чипу типа: добавить в выборку или убрать из неё. */
+	onTypeToggle: (id: string) => void;
 	onStatus: (value: StatusFilter) => void;
 	onRating: (value: RatingFilter) => void;
 }
@@ -28,8 +28,8 @@ export function renderDashboardStats(
 	callbacks: DashboardFilterCallbacks,
 ): void {
 	parent.empty();
-	// Чипы статусов — только для выбранного типа (для «Все типы» — объединение).
-	for (const status of statusesForFilter(state.type)) {
+	// Чипы статусов — по выбранным типам (пустой выбор — встроенные).
+	for (const status of statusesForFilter(state.types)) {
 		renderStatChip(parent, {
 			text: `${status.label}: ${items.filter((item) => item.status === status.id).length}`,
 			active: state.status === status.id,
@@ -40,8 +40,8 @@ export function renderDashboardStats(
 		renderStatChip(parent, {
 			text: `${schema.label}: ${items.filter((item) => item.type === schema.id).length}`,
 			icon: schema.icon,
-			active: state.type === schema.id,
-			onClick: () => callbacks.onType(schema.id),
+			active: state.types.includes(schema.id),
+			onClick: () => callbacks.onTypeToggle(schema.id),
 		});
 	}
 	const rated = items.filter((item) => item.rating !== null);

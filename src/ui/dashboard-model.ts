@@ -2,14 +2,14 @@ import { formatHours } from '../utils/format';
 import type { ContentItem, ContentStatusId } from '../types';
 import { progressPercent } from '../utils/helpers';
 
-export type TypeFilter = string;
 export type StatusFilter = ContentStatusId | 'All';
 export type RatingFilter = 'All' | 1 | 2 | 3 | 4 | 5;
 export type SortKey = 'Updated' | 'Title' | 'Progress';
 export type ViewMode = 'List' | 'Cards';
 
 export interface DashboardQuery {
-	type: TypeFilter;
+	/** Выбранные типы; пустой список — все типы. */
+	types: string[];
 	status: StatusFilter;
 	minimumRating: RatingFilter;
 	sort: SortKey;
@@ -41,8 +41,8 @@ export function selectDashboardItems(
 	query: DashboardQuery,
 ): ContentItem[] {
 	let items = [...allItems];
-	if (query.type !== 'All') {
-		items = items.filter((item) => item.type === query.type);
+	if (query.types.length > 0) {
+		items = items.filter((item) => query.types.includes(item.type));
 	}
 	if (query.status !== 'All') {
 		items = items.filter((item) => item.status === query.status);
