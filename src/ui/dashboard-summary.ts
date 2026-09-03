@@ -1,6 +1,7 @@
 import { setIcon } from 'obsidian';
-import { getAllStatuses, getAllTypeSchemas } from '../core/registry';
+import { getAllTypeSchemas } from '../core/registry';
 import type { ContentItem } from '../types';
+import { statusesForFilter } from './dashboard-controls';
 import {
 	completionMonths,
 	type RatingFilter,
@@ -27,7 +28,8 @@ export function renderDashboardStats(
 	callbacks: DashboardFilterCallbacks,
 ): void {
 	parent.empty();
-	for (const status of getAllStatuses()) {
+	// Чипы статусов — только для выбранного типа (для «Все типы» — объединение).
+	for (const status of statusesForFilter(state.type)) {
 		renderStatChip(parent, {
 			text: `${status.label}: ${items.filter((item) => item.status === status.id).length}`,
 			active: state.status === status.id,
